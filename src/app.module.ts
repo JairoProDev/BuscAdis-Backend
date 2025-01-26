@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 
 @Module({
   imports: [
@@ -42,11 +45,10 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
       inject: [ConfigService],
     }),
 
-    // Feature modules will be imported here
-    // AuthModule,
-    // UsersModule,
-    // SearchModule,
-    // CategoriesModule,
+    // Feature modules
+    AuthModule,
+    UsersModule,
+    CategoriesModule,
   ],
 })
 export class AppModule {} 
