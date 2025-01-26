@@ -1,91 +1,196 @@
-# BuscAdis Backend API
+# Buscadis Backend
 
-Backend service for BuscAdis platform, built with NestJS, Fastify, PostgreSQL, and Elasticsearch.
+Backend service for the Buscadis marketplace application.
 
-## Features
+## Description
 
-- 🔐 Advanced Authentication System
-  - JWT-based authentication
-  - Social login (Google, Facebook)
-  - Phone number verification
-  - Role-based access control
+This is a NestJS-based backend service that provides all the necessary APIs for the Buscadis marketplace, including:
 
-- 🔍 Powerful Search Engine
-  - Elasticsearch integration
-  - Advanced filtering and sorting
-  - Real-time search suggestions
-
-- 🎯 High Performance
-  - Fastify as HTTP engine
-  - Optimized database queries
-  - Caching system
-  - Rate limiting
+- User authentication and authorization
+- Category management
+- Listing management
+- Advanced search functionality
+- Messaging system
+- Favorites management
+- Report system
+- Notification system
 
 ## Prerequisites
 
-- Node.js (v20.x)
-- PostgreSQL (v15+)
-- Elasticsearch (v8.x)
-- Redis (optional, for caching)
+Before you begin, ensure you have the following installed:
+
+- Node.js (v18 or later)
+- PostgreSQL (v14 or later)
+- Elasticsearch (v8 or later)
+- Redis (v6 or later)
 
 ## Installation
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Copy environment file:
-   ```bash
-   cp .env.example .env
-   ```
-4. Configure your environment variables in `.env`
-
-## Development
-
+1. Clone the repository:
 ```bash
-# Start in development mode
-npm run start:dev
-
-# Run tests
-npm run test
-
-# Run e2e tests
-npm run test:e2e
-
-# Build for production
-npm run build
+git clone https://github.com/yourusername/buscadis.git
+cd buscadis/backend
 ```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Create a `.env` file based on `.env.example`:
+```bash
+cp .env.example .env
+```
+
+4. Update the `.env` file with your configuration values.
+
+## Database Setup
+
+1. Create a PostgreSQL database:
+```bash
+createdb buscadis
+```
+
+2. Run database migrations:
+```bash
+npm run migration:run
+```
+
+3. (Optional) Seed the database with initial data:
+```bash
+npm run seed
+```
+
+## Elasticsearch Setup
+
+1. Make sure Elasticsearch is running and accessible.
+
+2. Initialize the Elasticsearch index:
+```bash
+npm run init
+```
+
+## Running the Application
+
+### Development
+```bash
+npm run start:dev
+```
+
+### Production
+```bash
+npm run build
+npm run start:prod
+```
+
+The application will be available at `http://localhost:3000` by default.
 
 ## API Documentation
 
-Once the application is running, visit `/api` for the Swagger documentation.
+Once the application is running, you can access the Swagger API documentation at:
+```
+http://localhost:3000/api/docs
+```
+
+## Available Scripts
+
+- `npm run build` - Build the application
+- `npm run format` - Format code using Prettier
+- `npm run start` - Start the application
+- `npm run start:dev` - Start the application in watch mode
+- `npm run start:debug` - Start the application in debug mode
+- `npm run start:prod` - Start the production build
+- `npm run lint` - Lint the code
+- `npm run test` - Run tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:cov` - Run tests with coverage
+- `npm run test:debug` - Run tests in debug mode
+- `npm run test:e2e` - Run end-to-end tests
+- `npm run migration:create` - Create a new migration
+- `npm run migration:generate` - Generate migrations from entity changes
+- `npm run migration:run` - Run pending migrations
+- `npm run migration:revert` - Revert the last migration
+- `npm run seed` - Seed the database with initial data
+- `npm run init` - Initialize Elasticsearch index and other setup tasks
 
 ## Project Structure
 
 ```
 src/
-├── config/           # Configuration modules
-├── modules/          # Feature modules
-│   ├── auth/         # Authentication
+├── config/             # Configuration files
+├── database/          # Database migrations and seeds
+├── modules/           # Feature modules
+│   ├── auth/         # Authentication module
 │   ├── users/        # User management
+│   ├── categories/   # Category management
+│   ├── listings/     # Listing management
 │   ├── search/       # Search functionality
-│   └── categories/   # Category management
-└── common/           # Shared code
-    ├── decorators/
-    ├── filters/
-    ├── guards/
-    ├── interfaces/
-    └── pipes/
+│   ├── favorites/    # Favorites management
+│   ├── messages/     # Messaging system
+│   ├── reports/      # Report system
+│   └── notifications/# Notification system
+├── scripts/          # Utility scripts
+├── app.module.ts     # Main application module
+└── main.ts          # Application entry point
 ```
+
+## Features
+
+### Authentication
+- JWT-based authentication
+- OAuth2 support (Google, Facebook)
+- Role-based access control
+
+### User Management
+- User registration and profile management
+- Email verification
+- Password reset
+
+### Category Management
+- Hierarchical categories
+- Category CRUD operations
+- Category metadata
+
+### Listing Management
+- Create and manage listings
+- Image upload
+- Listing status management
+- Featured listings
+
+### Search
+- Full-text search
+- Geolocation-based search
+- Advanced filtering
+- Faceted search
+
+### Messaging
+- Real-time messaging
+- Conversation management
+- Message notifications
+
+### Favorites
+- Save favorite listings
+- Manage favorite lists
+- Favorite notifications
+
+### Reports
+- Report inappropriate listings
+- Report management
+- Moderation tools
+
+### Notifications
+- Real-time notifications
+- Email notifications
+- Notification preferences
 
 ## Contributing
 
-1. Create a feature branch
-2. Commit your changes
-3. Push to the branch
-4. Create a Pull Request
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-[MIT Licensed](LICENSE) 
+This project is licensed under the MIT License - see the LICENSE file for details. 

@@ -1,42 +1,48 @@
 import { NestFactory } from '@nestjs/core';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+import * as compression from 'compression';
+import * as helmet from 'helmet';
 import { AppModule } from './app.module';
+import { setupSwagger } from './config/swagger.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
-    new FastifyAdapter()
-  );
+  const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
-  // Enable CORS
-  app.enableCors();
+  // Global prefix
+  const apiPrefix = configService.get('apiPrefix');
+  const apiVersion = configService.get('apiVersion');
+  app.setGlobalPrefix(`${apiPrefix}/${apiVersion}`);
 
-  // Global validation pipe
+  // Security
+  app.use(helmet());
+  app.enableCors({
+    origin: configService.get('frontendUrl'),
+    credentials: true,
+  });
+
+  // Compression
+  app.use(compression());
+
+  // Validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
-    })
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
   );
 
-  // Swagger documentation setup
-  const config = new DocumentBuilder()
-    .setTitle('BuscAdis API')
-    .setDescription('The BuscAdis marketplace API documentation')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  // Swagger documentation
+  setupSwagger(app, configService);
 
   // Start the server
-  const port = process.env.PORT || 3001;
-  await app.listen(port, '0.0.0.0');
+  const port = configService.get('port');
+  await app.listen(port);
   console.log(`Application is running on: ${await app.getUrl()}`);
 }
-
 bootstrap(); 
