@@ -5,6 +5,7 @@ import {
   Body,
   Patch,
   Param,
+  Delete,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -43,33 +44,42 @@ export class MessagesController {
     @Request() req,
   ): Promise<MessageResponseDto> {
     const message = await this.messagesService.create(createMessageDto, req.user);
-    return this.messagesService['mapToResponseDto'](message);
+    return this.messagesService.mapToResponseDto(message);
   }
 
-  @Get('conversations')
-  @ApiOperation({ summary: 'Get user conversations' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns an array of conversations',
-    type: [ConversationDto],
-  })
-  async getConversations(@Request() req): Promise<ConversationDto[]> {
-    return this.messagesService.getConversations(req.user);
-  }
-
-  @Get('conversations/:userId')
-  @ApiOperation({ summary: 'Get conversation with a specific user' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
+  @Get()
+  @ApiOperation({ summary: 'Get all messages' })
   @ApiResponse({
     status: 200,
     description: 'Returns an array of messages',
     type: [MessageResponseDto],
   })
-  async getConversation(
+  async findAll(@Request() req): Promise<MessageResponseDto[]> {
+    const messages = await this.messagesService.findAll(req.user);
+    return messages.map(message =>
+      this.messagesService.mapToResponseDto(message),
+    );
+  }
+
+  @Get('conversation/:userId')
+  @ApiOperation({ summary: 'Get conversation with a specific user' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns an array of messages in the conversation',
+    type: [MessageResponseDto],
+  })
+  async findConversation(
     @Param('userId') userId: string,
     @Request() req,
   ): Promise<MessageResponseDto[]> {
-    return this.messagesService.getConversation(userId, req.user);
+    const messages = await this.messagesService.findConversation(
+      req.user,
+      userId,
+    );
+    return messages.map(message =>
+      this.messagesService.mapToResponseDto(message),
+    );
   }
 
   @Get(':id')
@@ -85,7 +95,7 @@ export class MessagesController {
     @Request() req,
   ): Promise<MessageResponseDto> {
     const message = await this.messagesService.findOne(id, req.user);
-    return this.messagesService['mapToResponseDto'](message);
+    return this.messagesService.mapToResponseDto(message);
   }
 
   @Patch(':id')
@@ -106,6 +116,17 @@ export class MessagesController {
       updateMessageDto,
       req.user,
     );
-    return this.messagesService['mapToResponseDto'](message);
+    return this.messagesService.mapToResponseDto(message);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a message' })
+  @ApiParam({ name: 'id', description: 'Message ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'The message has been successfully deleted.',
+  })
+  async remove(@Param('id') id: string, @Request() req): Promise<void> {
+    return this.messagesService.remove(id, req.user);
   }
 } 

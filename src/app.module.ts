@@ -9,6 +9,9 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { ProductsModule } from './modules/products/products.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { MessagesModule } from './modules/messages/messages.module';
+import { ListingsModule } from './modules/listings/listings.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -57,6 +60,9 @@ import { MessagesModule } from './modules/messages/messages.module';
     ProductsModule,
     FavoritesModule,
     MessagesModule,
+    ListingsModule,
+    ReportsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {} 

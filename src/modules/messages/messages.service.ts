@@ -5,78 +5,104 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Message, MessageStatus } from './entities/message.entity';
+import { Message } from './entities/message.entity';
 import { User } from '../users/entities/user.entity';
-import { Product } from '../products/entities/product.entity';
-import {
-  CreateMessageDto,
-  UpdateMessageDto,
-  MessageResponseDto,
-  ConversationDto,
-} from './dto/message.dto';
+import { Listing } from '../listings/entities/listing.entity';
+import { CreateMessageDto, UpdateMessageDto } from './dto/message.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class MessagesService {
   constructor(
     @InjectRepository(Message)
-    private readonly messageRepository: Repository<Message>,
+    private readonly messagesRepository: Repository<Message>,
     @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
+    private readonly usersRepository: Repository<User>,
+    @InjectRepository(Listing)
+    private readonly listingsRepository: Repository<Listing>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
-  async create(
-    createMessageDto: CreateMessageDto,
-    sender: User,
-  ): Promise<Message> {
-    const recipient = await this.userRepository.findOne({
-      where: { id: createMessageDto.recipientId },
+  async create(createMessageDto: CreateMessageDto, sender: User): Promise<Message> {
+    const receiver = await this.usersRepository.findOne({
+      where: { id: createMessageDto.receiverId },
     });
 
-    if (!recipient) {
-      throw new NotFoundException('Recipient not found');
+    if (!receiver) {
+      throw new NotFoundException('Receiver not found');
     }
 
-    let product: Product | null = null;
-    if (createMessageDto.productId) {
-      product = await this.productRepository.findOne({
-        where: { id: createMessageDto.productId },
-      });
+    const listing = await this.listingsRepository.findOne({
+      where: { id: createMessageDto.listingId },
+      relations: ['seller'],
+    });
 
-      if (!product) {
-        throw new NotFoundException('Product not found');
-      }
+    if (!listing) {
+      throw new NotFoundException('Listing not found');
     }
 
-    const message = this.messageRepository.create({
-      content: createMessageDto.content,
+    if (listing.seller.id === sender.id) {
+      throw new ForbiddenException('Cannot send a message to your own listing');
+    }
+
+    const message = this.messagesRepository.create({
       sender,
-      recipient,
-      product,
+      receiver,
+      listing,
+      content: createMessageDto.content,
     });
 
-    return this.messageRepository.save(message);
+    await this.messagesRepository.save(message);
+
+    // Notify the receiver
+    await this.notificationsService.createNewMessageNotification(
+      receiver,
+      sender,
+      listing,
+    );
+
+    return message;
+  }
+
+  async findAll(user: User): Promise<Message[]> {
+    return this.messagesRepository.find({
+      where: [
+        { sender: { id: user.id } },
+        { receiver: { id: user.id } },
+      ],
+      relations: ['sender', 'receiver', 'listing'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findConversation(user: User, otherUserId: string): Promise<Message[]> {
+    return this.messagesRepository.find({
+      where: [
+        {
+          sender: { id: user.id },
+          receiver: { id: otherUserId },
+        },
+        {
+          sender: { id: otherUserId },
+          receiver: { id: user.id },
+        },
+      ],
+      relations: ['sender', 'receiver', 'listing'],
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async findOne(id: string, user: User): Promise<Message> {
-    const message = await this.messageRepository.findOne({
-      where: { id },
-      relations: ['sender', 'recipient', 'product'],
+    const message = await this.messagesRepository.findOne({
+      where: [
+        { id, sender: { id: user.id } },
+        { id, receiver: { id: user.id } },
+      ],
+      relations: ['sender', 'receiver', 'listing'],
     });
 
     if (!message) {
       throw new NotFoundException('Message not found');
-    }
-
-    if (message.sender.id !== user.id && message.recipient.id !== user.id) {
-      throw new ForbiddenException('You can only access your own messages');
-    }
-
-    if (message.recipient.id === user.id && message.status !== MessageStatus.READ) {
-      message.status = MessageStatus.READ;
-      message.readAt = new Date();
-      await this.messageRepository.save(message);
     }
 
     return message;
@@ -89,134 +115,47 @@ export class MessagesService {
   ): Promise<Message> {
     const message = await this.findOne(id, user);
 
-    if (message.sender.id !== user.id && message.recipient.id !== user.id) {
-      throw new ForbiddenException('You can only update your own messages');
+    if (message.receiver.id !== user.id) {
+      throw new ForbiddenException('Cannot update messages you did not receive');
     }
 
     Object.assign(message, updateMessageDto);
 
-    return this.messageRepository.save(message);
-  }
-
-  async getConversations(user: User): Promise<ConversationDto[]> {
-    const messages = await this.messageRepository
-      .createQueryBuilder('message')
-      .innerJoinAndSelect('message.sender', 'sender')
-      .innerJoinAndSelect('message.recipient', 'recipient')
-      .leftJoinAndSelect('message.product', 'product')
-      .where(
-        '(message.sender_id = :userId OR message.recipient_id = :userId) AND message.is_deleted = false',
-        { userId: user.id },
-      )
-      .orderBy('message.created_at', 'DESC')
-      .getMany();
-
-    const conversationMap = new Map<string, ConversationDto>();
-
-    for (const message of messages) {
-      const otherUser =
-        message.sender.id === user.id ? message.recipient : message.sender;
-      const conversationKey = otherUser.id;
-
-      if (!conversationMap.has(conversationKey)) {
-        const unreadCount = await this.messageRepository.count({
-          where: {
-            sender: { id: otherUser.id },
-            recipient: { id: user.id },
-            status: MessageStatus.SENT,
-            isDeleted: false,
-          },
-        });
-
-        conversationMap.set(conversationKey, {
-          otherUser: {
-            id: otherUser.id,
-            firstName: otherUser.firstName,
-            lastName: otherUser.lastName,
-            email: otherUser.email,
-          },
-          lastMessage: this.mapToResponseDto(message),
-          unreadCount,
-          updatedAt: message.updatedAt,
-        });
-      }
+    if (updateMessageDto.isRead) {
+      message.readAt = new Date();
     }
 
-    return Array.from(conversationMap.values()).sort(
-      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
-    );
+    return this.messagesRepository.save(message);
   }
 
-  async getConversation(
-    otherUserId: string,
-    user: User,
-  ): Promise<MessageResponseDto[]> {
-    const messages = await this.messageRepository.find({
-      where: [
-        {
-          sender: { id: user.id },
-          recipient: { id: otherUserId },
-          isDeleted: false,
-        },
-        {
-          sender: { id: otherUserId },
-          recipient: { id: user.id },
-          isDeleted: false,
-        },
-      ],
-      relations: ['sender', 'recipient', 'product'],
-      order: { createdAt: 'ASC' },
-    });
+  async remove(id: string, user: User): Promise<void> {
+    const message = await this.findOne(id, user);
 
-    // Mark messages as read
-    const unreadMessages = messages.filter(
-      message =>
-        message.recipient.id === user.id &&
-        message.status !== MessageStatus.READ,
-    );
-
-    if (unreadMessages.length > 0) {
-      await this.messageRepository
-        .createQueryBuilder()
-        .update(Message)
-        .set({ status: MessageStatus.READ, readAt: new Date() })
-        .whereInIds(unreadMessages.map(m => m.id))
-        .execute();
+    if (message.sender.id !== user.id && message.receiver.id !== user.id) {
+      throw new ForbiddenException('Cannot delete messages you are not part of');
     }
 
-    return messages.map(message => this.mapToResponseDto(message));
+    if (message.sender.id === user.id) {
+      message.isDeleted = true;
+    } else {
+      message.isArchived = true;
+    }
+
+    await this.messagesRepository.save(message);
   }
 
-  private mapToResponseDto(message: Message): MessageResponseDto {
+  async mapToResponseDto(message: Message) {
     return {
       id: message.id,
+      sender: message.sender,
+      receiver: message.receiver,
+      listing: message.listing,
       content: message.content,
-      status: message.status,
+      isRead: message.isRead,
       isArchived: message.isArchived,
       isDeleted: message.isDeleted,
-      sender: {
-        id: message.sender.id,
-        firstName: message.sender.firstName,
-        lastName: message.sender.lastName,
-        email: message.sender.email,
-      },
-      recipient: {
-        id: message.recipient.id,
-        firstName: message.recipient.firstName,
-        lastName: message.recipient.lastName,
-        email: message.recipient.email,
-      },
-      product: message.product
-        ? {
-            id: message.product.id,
-            title: message.product.title,
-            slug: message.product.slug,
-            price: message.product.price,
-          }
-        : undefined,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
-      readAt: message.readAt,
     };
   }
 } 

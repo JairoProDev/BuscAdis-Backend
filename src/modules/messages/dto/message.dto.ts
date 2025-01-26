@@ -5,33 +5,50 @@ import {
   IsOptional,
   IsEnum,
   IsBoolean,
+  IsNotEmpty,
+  MaxLength,
 } from 'class-validator';
 import { MessageStatus } from '../entities/message.entity';
+import { UserResponseDto } from '../../users/dto/user.dto';
+import { ListingResponseDto } from '../../listings/dto/listing.dto';
 
 export class CreateMessageDto {
-  @ApiProperty({ example: 'Hello, I am interested in your product' })
+  @ApiProperty({
+    description: 'The ID of the user to send the message to',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsUUID()
+  receiverId: string;
+
+  @ApiProperty({
+    description: 'The ID of the listing the message is about',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsUUID()
+  listingId: string;
+
+  @ApiProperty({
+    description: 'The content of the message',
+    example: 'Hello, I am interested in your listing. Is it still available?',
+    maxLength: 2000,
+  })
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
   content: string;
-
-  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
-  @IsUUID()
-  recipientId: string;
-
-  @ApiPropertyOptional({ example: '123e4567-e89b-12d3-a456-426614174000' })
-  @IsOptional()
-  @IsUUID()
-  productId?: string;
 }
 
 export class UpdateMessageDto {
-  @ApiPropertyOptional({ enum: MessageStatus })
-  @IsOptional()
-  @IsEnum(MessageStatus)
-  status?: MessageStatus;
+  @ApiProperty({
+    description: 'Whether the message has been read',
+    example: true,
+  })
+  isRead?: boolean;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
+  @ApiProperty({
+    description: 'Whether the message has been archived',
+    example: true,
+  })
   isArchived?: boolean;
 
   @ApiPropertyOptional()
@@ -41,53 +58,65 @@ export class UpdateMessageDto {
 }
 
 export class MessageResponseDto {
-  @ApiProperty()
+  @ApiProperty({
+    description: 'The unique identifier for the message',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   id: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'The user who sent the message',
+    type: () => UserResponseDto,
+  })
+  sender: UserResponseDto;
+
+  @ApiProperty({
+    description: 'The user who received the message',
+    type: () => UserResponseDto,
+  })
+  receiver: UserResponseDto;
+
+  @ApiProperty({
+    description: 'The listing the message is about',
+    type: () => ListingResponseDto,
+  })
+  listing: ListingResponseDto;
+
+  @ApiProperty({
+    description: 'The content of the message',
+    example: 'Hello, I am interested in your listing. Is it still available?',
+  })
   content: string;
 
-  @ApiProperty()
-  status: MessageStatus;
+  @ApiProperty({
+    description: 'Whether the message has been read',
+    example: false,
+  })
+  isRead: boolean;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Whether the message has been archived',
+    example: false,
+  })
   isArchived: boolean;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Whether the message has been deleted',
+    example: false,
+  })
   isDeleted: boolean;
 
-  @ApiProperty()
-  sender: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-
-  @ApiProperty()
-  recipient: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-
-  @ApiPropertyOptional()
-  product?: {
-    id: string;
-    title: string;
-    slug: string;
-    price: number;
-  };
-
-  @ApiProperty()
+  @ApiProperty({
+    description: 'The date when the message was created',
+    example: '2024-03-20T15:30:00.000Z',
+  })
   createdAt: Date;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'The date when the message was last updated',
+    example: '2024-03-20T15:30:00.000Z',
+  })
   updatedAt: Date;
-
-  @ApiPropertyOptional()
-  readAt?: Date;
 }
 
 export class ConversationDto {

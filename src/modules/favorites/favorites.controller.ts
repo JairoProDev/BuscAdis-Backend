@@ -2,8 +2,9 @@ import {
   Controller,
   Get,
   Post,
-  Delete,
+  Body,
   Param,
+  Delete,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -16,7 +17,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FavoritesService } from './favorites.service';
-import { Favorite } from './entities/favorite.entity';
+import { CreateFavoriteDto, FavoriteResponseDto } from './dto/favorite.dto';
 
 @ApiTags('favorites')
 @Controller('favorites')
@@ -25,59 +26,69 @@ import { Favorite } from './entities/favorite.entity';
 export class FavoritesController {
   constructor(private readonly favoritesService: FavoritesService) {}
 
-  @Post(':productId')
-  @ApiOperation({ summary: 'Add a product to favorites' })
-  @ApiParam({ name: 'productId', description: 'Product ID' })
+  @Post()
+  @ApiOperation({ summary: 'Add a listing to favorites' })
   @ApiResponse({
     status: 201,
-    description: 'The product has been added to favorites.',
+    description: 'The listing has been successfully added to favorites.',
+    type: FavoriteResponseDto,
   })
-  async addFavorite(
-    @Param('productId') productId: string,
+  async create(
+    @Body() createFavoriteDto: CreateFavoriteDto,
     @Request() req,
-  ): Promise<Favorite> {
-    return this.favoritesService.addFavorite(productId, req.user);
-  }
-
-  @Delete(':productId')
-  @ApiOperation({ summary: 'Remove a product from favorites' })
-  @ApiParam({ name: 'productId', description: 'Product ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'The product has been removed from favorites.',
-  })
-  async removeFavorite(
-    @Param('productId') productId: string,
-    @Request() req,
-  ): Promise<void> {
-    return this.favoritesService.removeFavorite(productId, req.user);
+  ): Promise<FavoriteResponseDto> {
+    const favorite = await this.favoritesService.create(createFavoriteDto, req.user);
+    return this.favoritesService.mapToResponseDto(favorite);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get user favorites' })
+  @ApiOperation({ summary: 'Get all favorites' })
   @ApiResponse({
     status: 200,
-    description: 'Returns an array of user favorites',
+    description: 'Returns an array of favorites',
+    type: [FavoriteResponseDto],
   })
-  async getUserFavorites(@Request() req): Promise<Favorite[]> {
-    return this.favoritesService.getUserFavorites(req.user.id);
+  async findAll(@Request() req): Promise<FavoriteResponseDto[]> {
+    const favorites = await this.favoritesService.findAll(req.user);
+    return favorites.map(favorite =>
+      this.favoritesService.mapToResponseDto(favorite),
+    );
   }
 
-  @Get(':productId/check')
-  @ApiOperation({ summary: 'Check if a product is in user favorites' })
-  @ApiParam({ name: 'productId', description: 'Product ID' })
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a favorite by id' })
+  @ApiParam({ name: 'id', description: 'Favorite ID' })
   @ApiResponse({
     status: 200,
-    description: 'Returns true if the product is in favorites',
+    description: 'Returns the favorite',
+    type: FavoriteResponseDto,
   })
-  async checkIsFavorite(
-    @Param('productId') productId: string,
+  async findOne(
+    @Param('id') id: string,
     @Request() req,
-  ): Promise<{ isFavorite: boolean }> {
-    const isFavorite = await this.favoritesService.checkIsFavorite(
-      productId,
-      req.user.id,
-    );
-    return { isFavorite };
+  ): Promise<FavoriteResponseDto> {
+    const favorite = await this.favoritesService.findOne(id, req.user);
+    return this.favoritesService.mapToResponseDto(favorite);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Remove a listing from favorites' })
+  @ApiParam({ name: 'id', description: 'Favorite ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'The listing has been successfully removed from favorites.',
+  })
+  async remove(@Param('id') id: string, @Request() req): Promise<void> {
+    return this.favoritesService.remove(id, req.user);
+  }
+
+  @Delete()
+  @ApiOperation({ summary: 'Remove all favorites' })
+  @ApiResponse({
+    status: 200,
+    description: 'All favorites have been successfully removed.',
+  })
+  async removeAll(@Request() req): Promise<void> {
+    return this.favoritesService.removeAll(req.user);
   }
 } 

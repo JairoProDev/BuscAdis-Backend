@@ -6,82 +6,99 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Favorite } from './entities/favorite.entity';
-import { Product } from '../products/entities/product.entity';
+import { Listing } from '../listings/entities/listing.entity';
 import { User } from '../users/entities/user.entity';
+import { CreateFavoriteDto } from './dto/favorite.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class FavoritesService {
   constructor(
     @InjectRepository(Favorite)
-    private readonly favoriteRepository: Repository<Favorite>,
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
+    private readonly favoritesRepository: Repository<Favorite>,
+    @InjectRepository(Listing)
+    private readonly listingsRepository: Repository<Listing>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
-  async addFavorite(productId: string, user: User): Promise<Favorite> {
-    const product = await this.productRepository.findOne({
-      where: { id: productId },
+  async create(createFavoriteDto: CreateFavoriteDto, user: User): Promise<Favorite> {
+    const listing = await this.listingsRepository.findOne({
+      where: { id: createFavoriteDto.listingId },
+      relations: ['seller'],
     });
 
-    if (!product) {
-      throw new NotFoundException('Product not found');
+    if (!listing) {
+      throw new NotFoundException('Listing not found');
     }
 
-    const existingFavorite = await this.favoriteRepository.findOne({
+    const existingFavorite = await this.favoritesRepository.findOne({
       where: {
         user: { id: user.id },
-        product: { id: productId },
+        listing: { id: listing.id },
       },
     });
 
     if (existingFavorite) {
-      throw new ConflictException('Product is already in favorites');
+      throw new ConflictException('Listing is already in favorites');
     }
 
-    // Increment product likes count
-    await this.productRepository.increment({ id: productId }, 'likes', 1);
-
-    const favorite = this.favoriteRepository.create({
+    const favorite = this.favoritesRepository.create({
       user,
-      product,
+      listing,
     });
 
-    return this.favoriteRepository.save(favorite);
+    await this.favoritesRepository.save(favorite);
+
+    // Notify the listing owner
+    if (listing.seller.id !== user.id) {
+      await this.notificationsService.createNewFavoriteNotification(
+        listing.seller,
+        user,
+        listing,
+      );
+    }
+
+    return favorite;
   }
 
-  async removeFavorite(productId: string, user: User): Promise<void> {
-    const favorite = await this.favoriteRepository.findOne({
-      where: {
-        user: { id: user.id },
-        product: { id: productId },
-      },
+  async findAll(user: User): Promise<Favorite[]> {
+    return this.favoritesRepository.find({
+      where: { user: { id: user.id } },
+      relations: ['listing', 'listing.seller', 'listing.categories'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findOne(id: string, user: User): Promise<Favorite> {
+    const favorite = await this.favoritesRepository.findOne({
+      where: { id, user: { id: user.id } },
+      relations: ['listing', 'listing.seller', 'listing.categories'],
     });
 
     if (!favorite) {
       throw new NotFoundException('Favorite not found');
     }
 
-    // Decrement product likes count
-    await this.productRepository.decrement({ id: productId }, 'likes', 1);
-
-    await this.favoriteRepository.remove(favorite);
+    return favorite;
   }
 
-  async getUserFavorites(userId: string): Promise<Favorite[]> {
-    return this.favoriteRepository.find({
-      where: { user: { id: userId } },
-      relations: ['product', 'product.seller', 'product.categories'],
-    });
+  async remove(id: string, user: User): Promise<void> {
+    const favorite = await this.findOne(id, user);
+    await this.favoritesRepository.remove(favorite);
   }
 
-  async checkIsFavorite(productId: string, userId: string): Promise<boolean> {
-    const favorite = await this.favoriteRepository.findOne({
-      where: {
-        user: { id: userId },
-        product: { id: productId },
-      },
+  async removeAll(user: User): Promise<void> {
+    const favorites = await this.favoritesRepository.find({
+      where: { user: { id: user.id } },
     });
+    await this.favoritesRepository.remove(favorites);
+  }
 
-    return !!favorite;
+  async mapToResponseDto(favorite: Favorite) {
+    return {
+      id: favorite.id,
+      listing: favorite.listing,
+      createdAt: favorite.createdAt,
+    };
   }
 } 

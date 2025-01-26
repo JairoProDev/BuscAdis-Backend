@@ -8,7 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { Product } from '../../products/entities/product.entity';
+import { Listing } from '../../listings/entities/listing.entity';
 
 export enum MessageStatus {
   SENT = 'sent',
@@ -21,27 +21,29 @@ export class Message {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, user => user.sentMessages, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'sender_id' })
   sender: User;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'recipient_id' })
-  recipient: User;
+  @ManyToOne(() => User, user => user.receivedMessages, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'receiver_id' })
+  receiver: User;
 
-  @ManyToOne(() => Product, { onDelete: 'SET NULL', nullable: true })
-  @JoinColumn({ name: 'product_id' })
-  product?: Product;
+  @ManyToOne(() => Listing, listing => listing.messages, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'listing_id' })
+  listing: Listing;
 
-  @Column('text')
+  @Column({ type: 'text' })
   content: string;
 
-  @Column({
-    type: 'enum',
-    enum: MessageStatus,
-    default: MessageStatus.SENT,
-  })
-  status: MessageStatus;
+  @Column({ default: false })
+  isRead: boolean;
 
   @Column({ default: false })
   isArchived: boolean;
@@ -49,10 +51,10 @@ export class Message {
   @Column({ default: false })
   isDeleted: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamp with time zone' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamp with time zone' })
   updatedAt: Date;
 
   @Column({ nullable: true })
