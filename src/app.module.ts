@@ -4,7 +4,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { SearchModule } from './modules/search/search.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { ProductsModule } from './modules/products/products.module';
 
 @Module({
   imports: [
@@ -48,7 +50,9 @@ import { CategoriesModule } from './modules/categories/categories.module';
     // Feature modules
     AuthModule,
     UsersModule,
+    SearchModule,
     CategoriesModule,
+    ProductsModule,
   ],
 })
 export class AppModule {} 
