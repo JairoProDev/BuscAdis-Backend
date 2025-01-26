@@ -1,0 +1,111 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { MessagesService } from './messages.service';
+import {
+  CreateMessageDto,
+  UpdateMessageDto,
+  MessageResponseDto,
+  ConversationDto,
+} from './dto/message.dto';
+
+@ApiTags('messages')
+@Controller('messages')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+export class MessagesController {
+  constructor(private readonly messagesService: MessagesService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Send a new message' })
+  @ApiResponse({
+    status: 201,
+    description: 'The message has been successfully sent.',
+    type: MessageResponseDto,
+  })
+  async create(
+    @Body() createMessageDto: CreateMessageDto,
+    @Request() req,
+  ): Promise<MessageResponseDto> {
+    const message = await this.messagesService.create(createMessageDto, req.user);
+    return this.messagesService['mapToResponseDto'](message);
+  }
+
+  @Get('conversations')
+  @ApiOperation({ summary: 'Get user conversations' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns an array of conversations',
+    type: [ConversationDto],
+  })
+  async getConversations(@Request() req): Promise<ConversationDto[]> {
+    return this.messagesService.getConversations(req.user);
+  }
+
+  @Get('conversations/:userId')
+  @ApiOperation({ summary: 'Get conversation with a specific user' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns an array of messages',
+    type: [MessageResponseDto],
+  })
+  async getConversation(
+    @Param('userId') userId: string,
+    @Request() req,
+  ): Promise<MessageResponseDto[]> {
+    return this.messagesService.getConversation(userId, req.user);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a message by id' })
+  @ApiParam({ name: 'id', description: 'Message ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the message',
+    type: MessageResponseDto,
+  })
+  async findOne(
+    @Param('id') id: string,
+    @Request() req,
+  ): Promise<MessageResponseDto> {
+    const message = await this.messagesService.findOne(id, req.user);
+    return this.messagesService['mapToResponseDto'](message);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update a message' })
+  @ApiParam({ name: 'id', description: 'Message ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'The message has been successfully updated.',
+    type: MessageResponseDto,
+  })
+  async update(
+    @Param('id') id: string,
+    @Body() updateMessageDto: UpdateMessageDto,
+    @Request() req,
+  ): Promise<MessageResponseDto> {
+    const message = await this.messagesService.update(
+      id,
+      updateMessageDto,
+      req.user,
+    );
+    return this.messagesService['mapToResponseDto'](message);
+  }
+} 
