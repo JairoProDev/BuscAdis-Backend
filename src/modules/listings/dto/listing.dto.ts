@@ -20,57 +20,83 @@ import {
 import { Type } from 'class-transformer';
 import { ListingType, ListingStatus, PriceType } from '../entities/listing.entity';
 
-class ImageDto {
-  @ApiProperty({ example: 'https://example.com/image.jpg' })
-  @IsUrl()
-  url: string;
+export class ImageDto {
+  @ApiProperty({
+    example: 'https://example.com/image.jpg',
+    description: 'The URL of the image',
+  })
+  @IsString()
+  url: string = '';
 
-  @ApiPropertyOptional({ example: 'Front view' })
+  @ApiPropertyOptional({
+    example: 'Beautiful house',
+    description: 'Alternative text for the image',
+  })
   @IsOptional()
   @IsString()
   alt?: string;
 
-  @ApiProperty({ example: 1 })
+  @ApiProperty({
+    example: 1,
+    description: 'The order of the image in the gallery',
+  })
   @IsNumber()
   @Min(0)
-  order: number;
+  order: number = 0;
 }
 
-class LocationDto {
-  @ApiProperty({ example: '123 Main St' })
+export class LocationDto {
+  @ApiProperty({
+    example: '123 Main St',
+    description: 'The street address',
+  })
   @IsString()
-  address: string;
+  address: string = '';
 
-  @ApiProperty({ example: 'New York' })
+  @ApiProperty({
+    example: 'New York',
+    description: 'The city',
+  })
   @IsString()
-  city: string;
+  city: string = '';
 
-  @ApiProperty({ example: 'NY' })
+  @ApiProperty({
+    example: 'NY',
+    description: 'The state',
+  })
   @IsString()
-  state: string;
+  state: string = '';
 
-  @ApiProperty({ example: 'USA' })
+  @ApiProperty({
+    example: 'USA',
+    description: 'The country',
+  })
   @IsString()
-  country: string;
+  country: string = '';
 
-  @ApiProperty()
+  @ApiPropertyOptional({
+    description: 'The coordinates of the location',
+  })
+  @IsOptional()
   @ValidateNested()
   @Type(() => CoordinatesDto)
-  coordinates: CoordinatesDto;
+  coordinates?: CoordinatesDto;
 }
 
-class CoordinatesDto {
-  @ApiProperty({ example: 40.7128 })
+export class CoordinatesDto {
+  @ApiProperty({
+    example: 40.7128,
+    description: 'The latitude',
+  })
   @IsNumber()
-  @Min(-90)
-  @Max(90)
-  latitude: number;
+  lat: number = 0;
 
-  @ApiProperty({ example: -74.0060 })
+  @ApiProperty({
+    example: -74.0060,
+    description: 'The longitude',
+  })
   @IsNumber()
-  @Min(-180)
-  @Max(180)
-  longitude: number;
+  lon: number = 0;
 }
 
 class ContactDto {
@@ -140,28 +166,35 @@ export class CreateListingDto extends QuickListingDto {
   @IsString()
   slug?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({
+    example: 100000,
+    description: 'The price of the listing',
+  })
   @IsNumber()
   @Min(0)
-  price?: number;
+  price: number = 0;
 
-  @ApiPropertyOptional({ enum: PriceType })
-  @IsOptional()
+  @ApiProperty({
+    enum: PriceType,
+    example: PriceType.FIXED,
+    description: 'The type of price',
+  })
   @IsEnum(PriceType)
-  priceType?: PriceType;
+  priceType: PriceType = PriceType.FIXED;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsObject()
   attributes?: Record<string, any>;
 
-  @ApiPropertyOptional({ type: [ImageDto] })
-  @IsOptional()
+  @ApiProperty({
+    type: [ImageDto],
+    description: 'The images of the listing',
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ImageDto)
-  images?: ImageDto[];
+  images: ImageDto[] = [];
 
   @ApiProperty({ type: [String] })
   @IsArray()
@@ -178,10 +211,21 @@ export class CreateListingDto extends QuickListingDto {
   @IsOptional()
   @IsBoolean()
   isUrgent?: boolean;
+
+  @ApiProperty({
+    description: 'The location of the listing',
+  })
+  @ValidateNested()
+  @Type(() => LocationDto)
+  location: LocationDto = new LocationDto();
 }
 
 export class UpdateListingDto extends CreateListingDto {
-  @ApiPropertyOptional({ enum: ListingStatus })
+  @ApiPropertyOptional({
+    enum: ListingStatus,
+    example: ListingStatus.PUBLISHED,
+    description: 'The status of the listing',
+  })
   @IsOptional()
   @IsEnum(ListingStatus)
   status?: ListingStatus;
@@ -296,74 +340,108 @@ export class SearchListingDto {
 }
 
 export class ListingResponseDto {
-  @ApiProperty()
-  id: string;
+  @ApiProperty({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    description: 'The unique identifier of the listing',
+  })
+  id: string = '';
 
-  @ApiProperty()
-  title: string;
+  @ApiProperty({
+    example: 'Beautiful house for sale',
+    description: 'The title of the listing',
+  })
+  title: string = '';
 
-  @ApiProperty()
-  slug: string;
+  @ApiProperty({
+    example: 'beautiful-house-for-sale',
+    description: 'The slug of the listing',
+  })
+  slug: string = '';
 
-  @ApiProperty()
-  description: string;
+  @ApiProperty({
+    example: 'This is a beautiful house in a great location...',
+    description: 'The description of the listing',
+  })
+  description: string = '';
 
-  @ApiProperty()
-  type: ListingType;
+  @ApiProperty({
+    example: 100000,
+    description: 'The price of the listing',
+  })
+  price: number = 0;
 
-  @ApiPropertyOptional()
-  price?: number;
+  @ApiProperty({
+    enum: PriceType,
+    example: PriceType.FIXED,
+    description: 'The type of price',
+  })
+  priceType: PriceType = PriceType.FIXED;
 
-  @ApiProperty()
-  priceType: PriceType;
-
-  @ApiProperty()
-  status: ListingStatus;
+  @ApiProperty({
+    enum: ListingStatus,
+    example: ListingStatus.PUBLISHED,
+    description: 'The status of the listing',
+  })
+  status: ListingStatus = ListingStatus.DRAFT;
 
   @ApiPropertyOptional()
   attributes?: Record<string, any>;
 
-  @ApiProperty()
-  images: ImageDto[];
+  @ApiProperty({
+    type: [ImageDto],
+    description: 'The images of the listing',
+  })
+  images: ImageDto[] = [];
 
-  @ApiPropertyOptional()
-  location?: LocationDto;
+  @ApiProperty({
+    description: 'The location of the listing',
+  })
+  location: LocationDto = new LocationDto();
 
-  @ApiProperty()
-  contact: ContactDto;
+  @ApiProperty({
+    example: 0,
+    description: 'The number of views',
+  })
+  views: number = 0;
 
-  @ApiProperty()
-  views: number;
+  @ApiProperty({
+    example: true,
+    description: 'Whether the listing is active',
+  })
+  isActive: boolean = true;
 
-  @ApiProperty()
-  likes: number;
-
-  @ApiProperty()
-  isActive: boolean;
-
-  @ApiProperty()
-  isFeatured: boolean;
-
-  @ApiProperty()
-  isVerified: boolean;
-
-  @ApiProperty()
-  isUrgent: boolean;
-
-  @ApiProperty()
-  owner: {
+  @ApiProperty({
+    description: 'The seller of the listing',
+  })
+  seller: {
     id: string;
     firstName: string;
     lastName: string;
     email: string;
+  } = {
+    id: '',
+    firstName: '',
+    lastName: '',
+    email: '',
   };
 
-  @ApiProperty()
-  categories: Array<{
-    id: string;
-    name: string;
-    slug: string;
-  }>;
+  @ApiProperty({
+    example: '2024-01-26T12:00:00.000Z',
+    description: 'When the listing was created',
+  })
+  createdAt: Date = new Date();
+
+  @ApiProperty({
+    example: '2024-01-26T12:00:00.000Z',
+    description: 'When the listing was last updated',
+  })
+  updatedAt: Date = new Date();
+
+  @ApiPropertyOptional({
+    example: '2024-01-26T12:00:00.000Z',
+    description: 'When the listing was published',
+  })
+  publishedAt?: Date;
 
   @ApiPropertyOptional()
   metadata?: Record<string, any>;
@@ -374,15 +452,7 @@ export class ListingResponseDto {
   @ApiPropertyOptional()
   relevanceScore?: number;
 
-  @ApiProperty()
-  createdAt: Date;
-
-  @ApiProperty()
-  updatedAt: Date;
-
-  @ApiPropertyOptional()
-  publishedAt?: Date;
-
   @ApiPropertyOptional()
   expiresAt?: Date;
 } 
+

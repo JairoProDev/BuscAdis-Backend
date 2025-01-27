@@ -12,6 +12,7 @@ import { MessagesModule } from './modules/messages/messages.module';
 import { ListingsModule } from './modules/listings/listings.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { getTypeOrmConfig } from './config/typeorm.config';
 
 @Module({
   imports: [
@@ -23,20 +24,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 
     // Database
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get('DB_HOST', 'localhost'),
-        port: configService.get('DB_PORT', 5432),
-        username: configService.get('DB_USERNAME', 'postgres'),
-        password: configService.get('DB_PASSWORD', ''),
-        database: configService.get('DB_NAME', 'buscadis'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get('NODE_ENV', 'development') === 'development',
-        logging: configService.get('NODE_ENV', 'development') === 'development',
-        ssl: configService.get('DB_SSL', 'false') === 'true',
-      }),
       inject: [ConfigService],
+      useFactory: getTypeOrmConfig,
     }),
 
     // Elasticsearch

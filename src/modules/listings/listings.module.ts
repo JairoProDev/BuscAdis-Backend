@@ -1,28 +1,20 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ElasticsearchModule } from '@nestjs/elasticsearch';
-import { ConfigService } from '@nestjs/config';
-import { ListingsService } from './listings.service';
+import { ConfigModule } from '@nestjs/config';
+import { StorageModule } from '../storage/storage.module';
 import { ListingsController } from './listings.controller';
+import { ListingsService } from './listings.service';
 import { Listing } from './entities/listing.entity';
-import { Category } from '../categories/entities/category.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Listing, Category]),
-    ElasticsearchModule.registerAsync({
-      useFactory: async (configService: ConfigService) => ({
-        node: configService.get('ELASTICSEARCH_NODE'),
-        auth: {
-          username: configService.get('ELASTICSEARCH_USERNAME'),
-          password: configService.get('ELASTICSEARCH_PASSWORD'),
-        },
-      }),
-      inject: [ConfigService],
-    }),
+    TypeOrmModule.forFeature([Listing]),
+    ConfigModule,
+    StorageModule,
   ],
   controllers: [ListingsController],
   providers: [ListingsService],
   exports: [ListingsService],
 })
 export class ListingsModule {} 
+

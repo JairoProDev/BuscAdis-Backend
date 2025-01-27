@@ -52,32 +52,19 @@ export class ListingsController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a new listing with full details' })
-  @ApiResponse({
-    status: 201,
-    description: 'The listing has been successfully created.',
-    type: ListingResponseDto,
-  })
-  async create(
-    @Body() createListingDto: CreateListingDto,
-    @Request() req,
-  ): Promise<ListingResponseDto> {
+  @ApiOperation({ summary: 'Create a new listing' })
+  @ApiResponse({ status: 201, description: 'The listing has been created', type: ListingResponseDto })
+  async create(@Body() createListingDto: CreateListingDto, @Request() req) {
     const listing = await this.listingsService.create(createListingDto, req.user);
-    return this.listingsService['mapToResponseDto'](listing);
+    return this.listingsService.mapToResponseDto(listing);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all published listings' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns an array of listings',
-    type: [ListingResponseDto],
-  })
-  async findAll(): Promise<ListingResponseDto[]> {
+  @ApiResponse({ status: 200, description: 'Return all published listings', type: [ListingResponseDto] })
+  async findAll() {
     const listings = await this.listingsService.findAll();
-    return listings.map(listing =>
-      this.listingsService['mapToResponseDto'](listing),
-    );
+    return Promise.all(listings.map(listing => this.listingsService.mapToResponseDto(listing)));
   }
 
   @Get('search')
@@ -111,14 +98,11 @@ export class ListingsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get a listing by id' })
   @ApiParam({ name: 'id', description: 'Listing ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns the listing',
-    type: ListingResponseDto,
-  })
-  async findOne(@Param('id') id: string): Promise<ListingResponseDto> {
+  @ApiResponse({ status: 200, description: 'Return the listing', type: ListingResponseDto })
+  @ApiResponse({ status: 404, description: 'Listing not found' })
+  async findOne(@Param('id') id: string) {
     const listing = await this.listingsService.findOne(id);
-    return this.listingsService['mapToResponseDto'](listing);
+    return this.listingsService.mapToResponseDto(listing);
   }
 
   @Patch(':id')
@@ -126,22 +110,16 @@ export class ListingsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a listing' })
   @ApiParam({ name: 'id', description: 'Listing ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'The listing has been successfully updated.',
-    type: ListingResponseDto,
-  })
+  @ApiResponse({ status: 200, description: 'The listing has been updated', type: ListingResponseDto })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Listing not found' })
   async update(
     @Param('id') id: string,
     @Body() updateListingDto: UpdateListingDto,
     @Request() req,
-  ): Promise<ListingResponseDto> {
-    const listing = await this.listingsService.update(
-      id,
-      updateListingDto,
-      req.user,
-    );
-    return this.listingsService['mapToResponseDto'](listing);
+  ) {
+    const listing = await this.listingsService.update(id, updateListingDto, req.user);
+    return this.listingsService.mapToResponseDto(listing);
   }
 
   @Delete(':id')
@@ -149,11 +127,11 @@ export class ListingsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a listing' })
   @ApiParam({ name: 'id', description: 'Listing ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'The listing has been successfully deleted.',
-  })
-  async remove(@Param('id') id: string, @Request() req): Promise<void> {
-    return this.listingsService.remove(id, req.user);
+  @ApiResponse({ status: 200, description: 'The listing has been deleted' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Listing not found' })
+  async remove(@Param('id') id: string, @Request() req) {
+    await this.listingsService.remove(id, req.user);
   }
 } 
+

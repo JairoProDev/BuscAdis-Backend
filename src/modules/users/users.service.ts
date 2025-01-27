@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { User } from './entities/user.entity';
 import { CreateUserDto, UpdateUserDto, SearchUsersDto } from './dto/user.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -44,17 +45,20 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.userRepository.findOne({
-      where: [
-        { email: createUserDto.email },
-        { phone: createUserDto.phone },
-      ],
+      where: { email: createUserDto.email },
     });
 
     if (existingUser) {
-      throw new ConflictException('User already exists');
+      throw new ConflictException('Email already exists');
     }
 
-    const user = this.userRepository.create(createUserDto);
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+
+    const user = this.userRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+    });
+
     const savedUser = await this.userRepository.save(user);
 
     // Index user in Elasticsearch
@@ -164,6 +168,21 @@ export class UsersService {
     };
   }
 
+  async validateUser(email: string, password: string): Promise<User | null> {
+    const user = await this.findByEmail(email);
+
+    if (user && await bcrypt.compare(password, user.password)) {
+      return user;
+    }
+
+    return null;
+  }
+
+  async mapToResponseDto(user: User) {
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+
   private mapUserToElastic(user: User) {
     return {
       id: user.id,
@@ -176,3 +195,4 @@ export class UsersService {
     };
   }
 } 
+

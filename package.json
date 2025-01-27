@@ -14,7 +14,12 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "ts-node ./node_modules/typeorm/cli",
+    "migration:run": "npm run typeorm migration:run -- -d ./src/config/typeorm.config.ts",
+    "migration:revert": "npm run typeorm migration:revert -- -d ./src/config/typeorm.config.ts",
+    "migration:show": "npm run typeorm migration:show -- -d ./src/config/typeorm.config.ts",
+    "db:init": "ts-node src/database/init.ts"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.17.0",

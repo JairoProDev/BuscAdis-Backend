@@ -8,6 +8,7 @@ import {
   ManyToMany,
   JoinTable,
   Index,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Category } from '../../categories/entities/category.entity';
@@ -29,10 +30,8 @@ export enum ListingType {
 export enum ListingStatus {
   DRAFT = 'draft',
   PUBLISHED = 'published',
-  UNDER_REVIEW = 'under_review',
-  REJECTED = 'rejected',
-  EXPIRED = 'expired',
-  ARCHIVED = 'archived'
+  SOLD = 'sold',
+  ARCHIVED = 'archived',
 }
 
 export enum PriceType {
@@ -49,17 +48,17 @@ export enum PriceType {
 @Index(['title', 'description'], { fulltext: true })
 export class Listing {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id: string = '';
 
   @Column()
   @Index()
-  title: string;
+  title: string = '';
 
-  @Column()
-  slug: string;
+  @Column({ unique: true })
+  slug: string = '';
 
   @Column('text')
-  description: string;
+  description: string = '';
 
   @Column({
     type: 'enum',
@@ -69,21 +68,21 @@ export class Listing {
   type: ListingType;
 
   @Column('decimal', { precision: 10, scale: 2, nullable: true })
-  price?: number;
+  price: number = 0;
 
   @Column({
     type: 'enum',
     enum: PriceType,
-    default: PriceType.CONTACT
+    default: PriceType.FIXED,
   })
-  priceType: PriceType;
+  priceType: PriceType = PriceType.FIXED;
 
   @Column({
     type: 'enum',
     enum: ListingStatus,
-    default: ListingStatus.DRAFT
+    default: ListingStatus.DRAFT,
   })
-  status: ListingStatus;
+  status: ListingStatus = ListingStatus.DRAFT;
 
   @Column('jsonb', { nullable: true })
   attributes: Record<string, any>;
@@ -93,7 +92,7 @@ export class Listing {
     url: string;
     alt?: string;
     order: number;
-  }>;
+  }> = [];
 
   @Column('jsonb', { nullable: true })
   location: {
@@ -101,10 +100,15 @@ export class Listing {
     city: string;
     state: string;
     country: string;
-    coordinates: {
-      latitude: number;
-      longitude: number;
+    coordinates?: {
+      lat: number;
+      lon: number;
     };
+  } = {
+    address: '',
+    city: '',
+    state: '',
+    country: '',
   };
 
   @Column('jsonb', { nullable: true })
@@ -118,13 +122,13 @@ export class Listing {
   };
 
   @Column({ default: 0 })
-  views: number;
+  views: number = 0;
 
   @Column({ default: 0 })
   likes: number;
 
   @Column({ default: true })
-  isActive: boolean;
+  isActive: boolean = true;
 
   @Column({ default: false })
   isFeatured: boolean;
@@ -135,8 +139,11 @@ export class Listing {
   @Column({ default: false })
   isUrgent: boolean;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  owner: User;
+  @ManyToOne(() => User, user => user.listings, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'userId' })
+  seller: User;
 
   @ManyToMany(() => Category)
   @JoinTable({
@@ -150,16 +157,16 @@ export class Listing {
   metadata: Record<string, any>;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt: Date = new Date();
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt: Date = new Date();
 
-  @Column({ nullable: true })
-  publishedAt: Date;
+  @Column({ type: 'timestamp', nullable: true })
+  publishedAt?: Date;
 
-  @Column({ nullable: true })
-  expiresAt: Date;
+  @Column({ type: 'timestamp', nullable: true })
+  soldAt?: Date;
 
   // Virtual fields
   @Column({ select: false, insert: false, update: false, nullable: true })
@@ -168,3 +175,4 @@ export class Listing {
   @Column({ select: false, insert: false, update: false, nullable: true })
   relevanceScore?: number;
 } 
+

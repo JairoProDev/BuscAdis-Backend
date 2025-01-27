@@ -1,26 +1,25 @@
-import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { DataSource, DataSourceOptions } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { config } from 'dotenv';
+import * as path from 'path';
 
-export const getTypeOrmConfig = (
-  configService: ConfigService,
-): TypeOrmModuleOptions => ({
+config();
+
+const configService = new ConfigService();
+
+export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
-  host: configService.get('database.host'),
-  port: configService.get('database.port'),
-  username: configService.get('database.username'),
-  password: configService.get('database.password'),
-  database: configService.get('database.name'),
-  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-  migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
-  cli: {
-    migrationsDir: 'src/database/migrations',
-  },
-  synchronize: configService.get('nodeEnv') === 'development',
-  logging: configService.get('nodeEnv') === 'development',
-  ssl: configService.get('database.ssl')
-    ? {
-        rejectUnauthorized: false,
-      }
-    : false,
-  autoLoadEntities: true,
-}); 
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  username: process.env.DB_USERNAME || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  database: process.env.DB_NAME || 'buscadis',
+  entities: [path.join(__dirname, '..', '**', '*.entity.{ts,js}')],
+  migrations: [path.join(__dirname, '..', 'database', 'migrations', '*{.ts,.js}')],
+  synchronize: process.env.NODE_ENV === 'development',
+  ssl: process.env.DB_SSL === 'true',
+  logging: process.env.NODE_ENV === 'development',
+};
+
+const dataSource = new DataSource(dataSourceOptions);
+export default dataSource; 
