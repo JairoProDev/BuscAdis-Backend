@@ -57,7 +57,7 @@ export class UsersService {
     }
   }
 
-  async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
+  async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.usersRepository.findOne({
       where: { email: createUserDto.email },
     });
@@ -75,7 +75,7 @@ export class UsersService {
 
     const savedUser = await this.usersRepository.save(user);
     await this.indexUser(savedUser);
-    return this.mapToResponseDto(savedUser);
+    return savedUser;
   }
 
   async findAll(): Promise<UserResponseDto[]> {

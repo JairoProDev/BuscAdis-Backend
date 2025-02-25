@@ -56,7 +56,7 @@ export class AuthService {
             throw new BadRequestException('El correo electrónico ya está registrado.');
         }
 
-        const user = await this.usersService.create(registerDto);
+        const user: User = await this.usersService.create(registerDto);
         if (!user) {
             throw new BadRequestException('Error creating user');
         }
@@ -65,7 +65,12 @@ export class AuthService {
             provider: AuthProvider.LOCAL,
             isVerified: false,
         };
-        await this.usersService.update(user.id, updateUserDto);
+
+        if (user.id) {
+            await this.usersService.update(user.id, updateUserDto);
+        } else {
+            throw new NotFoundException('User ID not found');
+        }
 
         return this.generateToken(user);
     }
