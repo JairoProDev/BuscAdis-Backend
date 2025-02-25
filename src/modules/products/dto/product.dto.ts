@@ -31,6 +31,11 @@ class ImageDto {
   @IsNumber()
   @Min(0)
   order: number;
+
+  constructor() { 
+    this.url = '';  // Initialize url
+    this.order = 0; // Initialize order
+  }
 }
 
 class LocationDto {
@@ -60,6 +65,14 @@ class LocationDto {
   @ValidateNested()
   @Type(() => CoordinatesDto)
   coordinates: CoordinatesDto;
+
+  constructor() {
+    this.address = '';      // Initialize address
+    this.city = '';        // Initialize city
+    this.state = '';       // Initialize state
+    this.country = '';     // Initialize country
+    this.coordinates = new CoordinatesDto(); // Initialize coordinates with a new instance
+  }
 }
 
 class CoordinatesDto {
@@ -74,12 +87,17 @@ class CoordinatesDto {
   @Min(-180)
   @Max(180)
   longitude: number;
+
+  constructor() {
+    this.latitude = 0;    // Initialize latitude
+    this.longitude = 0;   // Initialize longitude
+  }
 }
 
 export class CreateProductDto {
   @ApiProperty({ example: 'iPhone 12 Pro Max' })
   @IsString()
-  title: string;
+  title?: string; // Optional
 
   @ApiPropertyOptional({ example: 'iphone-12-pro-max' })
   @IsOptional()
@@ -88,20 +106,20 @@ export class CreateProductDto {
 
   @ApiProperty({ example: 'Like new iPhone 12 Pro Max, 256GB, Pacific Blue' })
   @IsString()
-  description: string;
+  description?: string; // Optional
 
   @ApiProperty({ example: 899.99 })
   @IsNumber()
   @Min(0)
-  price: number;
+  price?: number; // Optional
 
   @ApiProperty({ enum: PriceType, default: PriceType.FIXED })
   @IsEnum(PriceType)
-  priceType: PriceType;
+  priceType?: PriceType; // Optional
 
   @ApiProperty({ enum: ProductCondition, default: ProductCondition.NEW })
   @IsEnum(ProductCondition)
-  condition: ProductCondition;
+  condition?: ProductCondition; // Optional
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -113,23 +131,34 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @ArrayMinSize(1)
   @Type(() => ImageDto)
-  images: ImageDto[];
+  images?: ImageDto[]; // Optional
 
   @ApiProperty({ type: LocationDto })
   @ValidateNested()
   @Type(() => LocationDto)
-  location: LocationDto;
+  location?: LocationDto; // Optional
 
   @ApiProperty({ type: [String] })
   @IsArray()
   @IsUUID(undefined, { each: true })
   @ArrayMinSize(1)
-  categoryIds: string[];
+  categoryIds?: string[]; // Optional
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsObject()
   metadata?: Record<string, any>;
+
+  constructor() {
+    this.title = '';
+    this.description = '';
+    this.price = 0;
+    this.priceType = PriceType.FIXED;
+    this.condition = ProductCondition.NEW;
+    this.images = []; // Initialize as empty array
+    this.location = new LocationDto();
+    this.categoryIds = []; // Initialize as empty array
+  }
 }
 
 export class UpdateProductDto extends CreateProductDto {
@@ -154,13 +183,13 @@ export class UpdateProductDto extends CreateProductDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ImageDto)
-  images?: ImageDto[];
+  images?: ImageDto[]; // Correct type: array of ImageDto
 
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
   @IsUUID(undefined, { each: true })
-  categoryIds?: string[];
+  categoryIds?: string[]; // Correct type: array of strings
 }
 
 export class SearchProductsDto {
@@ -276,7 +305,7 @@ export class ProductResponseDto {
   condition: ProductCondition;
 
   @ApiProperty()
-  images: ImageDto[];
+  images: ImageDto;
 
   @ApiProperty()
   location: LocationDto;
@@ -328,4 +357,26 @@ export class ProductResponseDto {
 
   @ApiPropertyOptional()
   soldAt?: Date;
+
+  constructor() {
+    this.id = '';
+    this.title = '';
+    this.slug = '';
+    this.description = '';
+    this.price = 0;
+    this.priceType = PriceType.FIXED;
+    this.status = ProductStatus.DRAFT;
+    this.condition = ProductCondition.NEW;
+    this.images = new ImageDto();
+    this.location = new LocationDto();
+    this.views = 0;
+    this.likes = 0;
+    this.isActive = false;
+    this.isFeatured = false;
+    this.isVerified = false;
+    this.seller = { id: '', firstName: '', lastName: '', email: '' };
+    this.categories =[];
+    this.createdAt = new Date();
+    this.updatedAt = new Date();
+  }
 } 

@@ -2,71 +2,51 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, ValidateNested, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class LocationDto {
+export class LocationDto {
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  city: string;
+  @IsOptional()
+  district?: string;
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  state: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  country: string;
-
-  @ApiProperty()
-  @ValidateNested()
-  @Type(() => CoordinatesDto)
-  coordinates: CoordinatesDto;
+  @IsOptional()
+  region?: string;
 }
 
-class CoordinatesDto {
-  @ApiProperty()
-  @IsNotEmpty()
-  lat: number;
-
-  @ApiProperty()
-  @IsNotEmpty()
-  lon: number;
-}
-
-class ContactDto {
+export class ContactDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
   whatsapp: string;
 }
 
-class PriceDto {
+export class PriceDto {
   @ApiProperty()
-  @IsNotEmpty()
-  amount: number;
+  @IsOptional()
+  amount?: number;
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  currency: string;
+  @IsOptional()
+  currency?: string;
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  type: string;
+  @IsOptional()
+  type?: string;
 }
 
-class CategoryDto {
+export class CategoryDto {
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  id: string;
+  @IsOptional()
+  id?: string;
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  name: string;
+  @IsOptional()
+  name?: string;
 }
 
 export class QuickListingDto {
@@ -83,21 +63,22 @@ export class QuickListingDto {
   @ApiProperty()
   @ValidateNested()
   @Type(() => CategoryDto)
-  category: CategoryDto;
+  @IsOptional()
+  category?: CategoryDto;
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  type: string;
+  @IsOptional()
+  type?: string;
 
   @ApiProperty()
   @ValidateNested()
   @Type(() => ContactDto)
+  @IsNotEmpty()
   contact: ContactDto;
 
-  @ApiProperty({ type: [String], format: 'binary' })
+  @ApiProperty({ type: 'array', items: { type: 'string', format: 'binary' } })
   @IsOptional()
-  @IsArray()
   media?: any[];
 
   @ApiProperty()

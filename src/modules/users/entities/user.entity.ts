@@ -5,12 +5,20 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  BeforeInsert,
 } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { Listing } from '../../listings/entities/listing.entity';
 
 export enum UserRole {
   USER = 'user',
   ADMIN = 'admin',
+}
+
+export enum AuthProvider {
+  LOCAL = 'LOCAL',
+  GOOGLE = 'GOOGLE',
+  FACEBOOK = 'FACEBOOK',
 }
 
 @Entity('users')
@@ -21,7 +29,7 @@ export class User {
   @Column({ unique: true })
   email: string = '';
 
-  @Column()
+  @Column({ nullable: true })
   password: string = '';
 
   @Column({ nullable: true })
@@ -40,11 +48,27 @@ export class User {
   })
   role: UserRole = UserRole.USER;
 
+  @Column({
+    type: 'enum',
+    enum: AuthProvider,
+    default: AuthProvider.LOCAL,
+  })
+  provider: AuthProvider = AuthProvider.LOCAL;
+
+  @Column({ nullable: true })
+  providerId: string;
+
   @Column({ default: true })
   isActive: boolean = true;
 
   @Column({ default: false })
   isVerified: boolean = false;
+
+  @Column({ default: false })
+  emailVerified: boolean = false;
+
+  @Column({ default: false })
+  phoneVerified: boolean = false;
 
   @OneToMany(() => Listing, listing => listing.seller)
   listings: Listing[];
@@ -54,4 +78,18 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date = new Date();
+
+  @BeforeInsert()
+  async hashPassword() {
+    if (this.password && this.provider === AuthProvider.LOCAL) {
+      this.password = await bcrypt.hash(this.password, 10);
+    }
+  }
+
+  async validatePassword(password: string): Promise<boolean> {
+    if (this.provider !== AuthProvider.LOCAL) {
+      return false;
+    }
+    return bcrypt.compare(password, this.password);
+  }
 } 

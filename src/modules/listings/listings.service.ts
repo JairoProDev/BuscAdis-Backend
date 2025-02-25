@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, MoreThan } from 'typeorm';
+import { Repository, In, MoreThan, Like, FindOptionsWhere } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import * as slugify from 'slugify';
 import { Listing, ListingStatus } from './entities/listing.entity';
@@ -85,73 +85,78 @@ export class ListingsService {
     quickListingDto: QuickListingDto,
     owner: User,
   ): Promise<Listing> {
-    const slug = this.generateSlug(quickListingDto.title);
-
-    // Validate required fields
-    if (!quickListingDto.title || quickListingDto.title.length < 5) {
-      throw new BadRequestException('El título debe tener al menos 5 caracteres');
-    }
-
-    if (!quickListingDto.description || quickListingDto.description.length < 20) {
-      throw new BadRequestException('La descripción debe tener al menos 20 caracteres');
-    }
-
-    if (!quickListingDto.contact?.whatsapp || !/^\d{9,}$/.test(quickListingDto.contact.whatsapp)) {
-      throw new BadRequestException('El número de WhatsApp debe tener al menos 9 dígitos');
-    }
-
-    // Handle media files
-    let mediaUrls: string[] = [];
-    if (quickListingDto.media && quickListingDto.media.length > 0) {
-      try {
-        mediaUrls = await Promise.all(
-          quickListingDto.media.map(file => this.storageService.uploadFile(file))
-        );
-      } catch (error) {
-        throw new BadRequestException('Error al subir las imágenes. Por favor intenta de nuevo.');
-      }
-    }
-
-    // Set expiration date (30 days from now)
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
-
-    const listing = this.listingRepository.create({
-      title: quickListingDto.title,
-      description: quickListingDto.description,
-      slug,
-      owner,
-      type: quickListingDto.type,
-      category: quickListingDto.category,
-      contact: quickListingDto.contact,
-      location: quickListingDto.location,
-      price: quickListingDto.price,
-      media: mediaUrls.map((url, index) => ({
-        url,
-        order: index,
-        isPrimary: index === 0
-      })),
-      status: ListingStatus.ACTIVE,
-      publishedAt: new Date(),
-      expiresAt,
-      isActive: true,
-      isVerified: false,
-      isFeatured: false,
-      isUrgent: false,
-    });
-
     try {
-      const savedListing = await this.listingRepository.save(listing);
-      await this.indexListing(savedListing);
-      return savedListing;
-    } catch (error) {
-      // Clean up uploaded files if saving fails
-      if (mediaUrls.length > 0) {
-        await Promise.all(
-          mediaUrls.map(url => this.storageService.deleteFile(url))
-        );
+      const slug = this.generateSlug(quickListingDto.title);
+
+      // Validaciones mínimas
+      if (!quickListingDto.title) {
+        throw new BadRequestException('El título es requerido');
       }
-      throw new BadRequestException('Error al guardar el anuncio. Por favor intenta de nuevo.');
+      if (!quickListingDto.description) {
+        throw new BadRequestException('La descripción es requerida');
+      }
+      if (!quickListingDto.contact?.whatsapp) {
+        throw new BadRequestException('El número de WhatsApp es requerido');
+      }
+
+      // Handle media files if present
+      let mediaUrls: string[] = [];
+      if (quickListingDto.media?.length > 0) {
+        try {
+          mediaUrls = await Promise.all(
+            quickListingDto.media.map(file => this.storageService.uploadFile(file))
+          );
+        } catch (error) {
+          console.error('Error uploading media:', error);
+          // Continue without media if upload fails
+        }
+      }
+
+      // Set expiration date (30 days from now)
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+
+      const listing = await this.listingRepository.save({
+        title: quickListingDto.title,
+        description: quickListingDto.description,
+        slug,
+        owner,
+        type: quickListingDto.type,
+        category: quickListingDto.category,
+        contact: quickListingDto.contact,
+        location: quickListingDto.location,
+        price: quickListingDto.price,
+        media: mediaUrls.map((url, index) => ({
+          url,
+          order: index,
+          isPrimary: index === 0
+        })),
+        status: 'ACTIVE',
+        publishedAt: new Date(),
+        expiresAt,
+        isActive: true,
+        isVerified: false,
+        isFeatured: false,
+        isUrgent: false,
+      });
+
+      // Index the listing if elasticsearch is available
+      try {
+        await this.indexListing(listing);
+      } catch (error) {
+        console.error('Error indexing listing:', error);
+        // Continue even if indexing fails
+      }
+
+      return listing;
+    } catch (error) {
+      console.error('Error in createQuick:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        error.message || 'Error al crear el anuncio. Por favor intenta de nuevo.'
+      );
     }
   }
 
@@ -272,147 +277,58 @@ export class ListingsService {
   }
 
   async search(searchDto: SearchListingDto) {
-    const {
-      query,
-      type,
-      status,
-      categoryId,
-      ownerId,
-      minPrice,
-      maxPrice,
-      location,
-      city,
-      state,
-      country,
-      isFeatured,
-      isVerified,
-      isUrgent,
-      page = 1,
-      limit = 10,
-      sort = 'createdAt',
-      order = 'desc',
-    } = searchDto;
-
-    const must: any[] = [{ term: { isActive: true } }];
-    const filter: any[] = [];
-
-    if (query) {
-      must.push({
-        multi_match: {
-          query,
-          fields: ['title^2', 'description'],
-          fuzziness: 'AUTO',
-        },
-      });
-    }
-
-    if (type) {
-      filter.push({ term: { type } });
-    }
-
-    if (status) {
-      filter.push({ term: { status } });
-    }
-
-    if (categoryId) {
-      filter.push({ term: { categoryIds: categoryId } });
-    }
-
-    if (ownerId) {
-      filter.push({ term: { ownerId } });
-    }
-
-    if (minPrice !== undefined || maxPrice !== undefined) {
-      const range: any = {};
-      if (minPrice !== undefined) range.gte = minPrice;
-      if (maxPrice !== undefined) range.lte = maxPrice;
-      filter.push({ range: { price: range } });
-    }
-
-    if (city) {
-      filter.push({ term: { 'location.city': city } });
-    }
-
-    if (state) {
-      filter.push({ term: { 'location.state': state } });
-    }
-
-    if (country) {
-      filter.push({ term: { 'location.country': country } });
-    }
-
-    if (isFeatured !== undefined) {
-      filter.push({ term: { isFeatured } });
-    }
-
-    if (isVerified !== undefined) {
-      filter.push({ term: { isVerified } });
-    }
-
-    if (isUrgent !== undefined) {
-      filter.push({ term: { isUrgent } });
-    }
-
-    const body: any = {
-      from: (page - 1) * limit,
-      size: limit,
-      query: {
-        bool: {
-          must,
-          filter,
-        },
-      },
-      sort: [{ [sort]: { order } }],
+    const where: FindOptionsWhere<Listing> = {
+      isActive: true,
+      status: ListingStatus.ACTIVE,
     };
 
-    if (location) {
-      body.query.bool.filter.push({
-        geo_distance: {
-          distance: `${location.radius}km`,
-          'location.coordinates': {
-            lat: location.latitude,
-            lon: location.longitude,
-          },
-        },
-      });
-
-      body.sort.unshift({
-        _geo_distance: {
-          'location.coordinates': {
-            lat: location.latitude,
-            lon: location.longitude,
-          },
-          order: 'asc',
-          unit: 'km',
-        },
-      });
+    // Búsqueda por texto
+    if (searchDto.query) {
+      where.title = Like(`%${searchDto.query}%`);
     }
 
-    const { body: response } = await this.elasticsearchService.search({
-      index: this.indexName,
-      body,
+    // Filtro por categoría
+    if (searchDto.categoryId) {
+      where.category = { id: searchDto.categoryId };
+    }
+
+    // Filtro por ubicación
+    if (searchDto.location?.district) {
+      where.location = {
+        district: searchDto.location.district,
+        region: searchDto.location.region,
+      };
+    }
+
+    // Filtro por rango de precios
+    if (searchDto.price?.min || searchDto.price?.max) {
+      where.price = {};
+      if (searchDto.price.min) {
+        where.price.amount = searchDto.price.min;
+      }
+      if (searchDto.price.max) {
+        where.price.amount = searchDto.price.max;
+      }
+    }
+
+    const [items, total] = await this.listingRepository.findAndCount({
+      where,
+      order: {
+        isFeatured: 'DESC',
+        isUrgent: 'DESC',
+        createdAt: 'DESC',
+      },
+      skip: (searchDto.page - 1) * searchDto.limit,
+      take: searchDto.limit,
+      relations: ['owner', 'category'],
     });
-
-    const hits = response.hits.hits;
-    const total = response.hits.total.value;
-
-    const items = await Promise.all(
-      hits.map(async (hit: any) => {
-        const listing = await this.findOne(hit._source.id);
-        return {
-          ...this.mapToResponseDto(listing),
-          distance: hit.sort?.[0],
-          relevanceScore: hit._score,
-        };
-      }),
-    );
 
     return {
       items,
       total,
-      page,
-      limit,
-      pages: Math.ceil(total / limit),
+      page: searchDto.page,
+      limit: searchDto.limit,
+      pages: Math.ceil(total / searchDto.limit),
     };
   }
 

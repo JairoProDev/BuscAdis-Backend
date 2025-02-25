@@ -48,6 +48,29 @@ export class AuthService {
     return this.generateToken(user);
   }
 
+  async validateOAuthLogin(profile: any, provider: string): Promise<User> {
+    const providerEnum = provider.toUpperCase() as keyof typeof AuthProvider;
+    let user = await this.usersService.findByEmail(profile.email);
+
+    if (!user) {
+      user = await this.usersService.create({
+        email: profile.email,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        provider: AuthProvider[providerEnum],
+        providerId: profile.id,
+        isVerified: true,
+      });
+    } else if (user.provider !== AuthProvider[providerEnum]) {
+      // Update the user with the new provider information
+      user.providerId = profile.id;
+      user.provider = AuthProvider[providerEnum];
+      await this.usersService.update(user.id, user);
+    }
+
+    return user;
+  }
+
   async handleSocialAuth(profile: any, provider: AuthProvider) {
     let user = await this.usersService.findByEmail(profile.email);
 
