@@ -10,11 +10,16 @@ import {
   Index,
   JoinColumn,
   OneToMany,
+  BeforeInsert,
+  BeforeUpdate,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Category } from '../../categories/entities/category.entity';
+import { Image } from '../../images/entities/image.entity';
 import { Message } from '../../messages/entities/message.entity';
+import { Report } from '../../reports/entities/report.entity';
 import { Favorite } from '../../favorites/entities/favorite.entity';
+import { slugify } from '../../common/utils/slugify';
 
 export enum ListingType {
   JOB = 'job',
@@ -139,13 +144,26 @@ export class Listing {
   @Column({ default: false })
   isUrgent: boolean;
 
-  @ManyToOne(() => User, user => user.listings)
-  @JoinColumn({ name: 'seller_id' })
+  @ManyToOne(() => User, user => user.listings, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'sellerId' })
   seller: User;
 
-  @ManyToOne(() => Category, category => category.listings)
-  @JoinColumn({ name: 'category_id' })
-  category: Category;
+  @Column()
+  sellerId: string;
+
+  @ManyToMany(() => Category, category => category.listings)
+  @JoinTable({
+    name: 'listing_categories',
+    joinColumn: {
+      name: 'listingId',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'categoryId',
+      referencedColumnName: 'id',
+    },
+  })
+  categories: Category[];
 
   @Column({ type: 'timestamp', nullable: true })
   publishedAt: Date;
@@ -156,8 +174,11 @@ export class Listing {
   @OneToMany(() => Message, message => message.listing)
   messages: Message[];
 
+  @OneToMany(() => Report, report => report.listing)
+  reports: Report[];
+
   @OneToMany(() => Favorite, favorite => favorite.listing)
-  favorites: Favorite[];
+  favoritedBy: Favorite[];
 
   @Column('jsonb', { nullable: true })
   metadata: Record<string, any>;
@@ -174,5 +195,13 @@ export class Listing {
 
   @Column({ select: false, insert: false, update: false, nullable: true })
   relevanceScore?: number;
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  generateSlug() {
+    if (this.title) {
+      this.slug = slugify(this.title);
+    }
+  }
 } 
 
