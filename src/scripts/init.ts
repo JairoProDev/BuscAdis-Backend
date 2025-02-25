@@ -1,18 +1,29 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from '../app.module';
-import { SearchService } from '../modules/search/search.service';
+import { ListingsService } from 'src/modules/listings/listings.service';
+import { CategoriesService } from 'src/modules/categories/categories.service';
+import { UsersService } from 'src/modules/users/users.service';
+//import { SearchService } from '../modules/search/search.service'; // Ya no lo necesitas
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.createApplicationContext(AppModule); //  createApplicationContext
   const configService = app.get(ConfigService);
-  const searchService = app.get(SearchService);
+  //  SearchService. Ya no tienes SearchService, usa los servicios individuales.
+  const listingsService = app.get(ListingsService);
+  const categoriesService = app.get(CategoriesService);
+  const usersService = app.get(UsersService)
 
   try {
     // Initialize Elasticsearch index
-    console.log('Initializing Elasticsearch index...');
-    await searchService.createIndex();
-    console.log('Elasticsearch index initialized successfully');
+    console.log('Initializing Elasticsearch indices...');
+    // await searchService.createIndex(); // Ya no, cada servicio crea su propio indice
+    await listingsService['createIndex'](); // Accede al método privado
+    await categoriesService['createIndex'](); //Accede al metodo
+    await usersService['createIndex']();
+
+
+    console.log('Elasticsearch indices initialized successfully');
 
     // Add more initialization tasks here if needed
     // For example:
@@ -30,4 +41,4 @@ async function bootstrap() {
   process.exit(0);
 }
 
-bootstrap(); 
+bootstrap();
