@@ -18,6 +18,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FavoritesService } from './favorites.service';
 import { CreateFavoriteDto, FavoriteResponseDto } from './dto/favorite.dto';
+import { AuthenticatedRequest } from '../../common/types/request.type';
 
 @ApiTags('favorites')
 @Controller('favorites')
@@ -26,7 +27,7 @@ import { CreateFavoriteDto, FavoriteResponseDto } from './dto/favorite.dto';
 export class FavoritesController {
   constructor(private readonly favoritesService: FavoritesService) {}
 
-  @Post()
+  @Post(':listingId')
   @ApiOperation({ summary: 'Add a listing to favorites' })
   @ApiResponse({
     status: 201,
@@ -34,10 +35,10 @@ export class FavoritesController {
     type: FavoriteResponseDto,
   })
   async create(
-    @Body() createFavoriteDto: CreateFavoriteDto,
-    @Request() req,
+    @Param('listingId') listingId: string,
+    @Request() req: AuthenticatedRequest,
   ): Promise<FavoriteResponseDto> {
-    const favorite = await this.favoritesService.create(createFavoriteDto, req.user);
+    const favorite = await this.favoritesService.create(listingId, req.user);
     return this.favoritesService.mapToResponseDto(favorite);
   }
 
@@ -48,11 +49,11 @@ export class FavoritesController {
     description: 'Returns an array of favorites',
     type: [FavoriteResponseDto],
   })
-  async findAll(@Request() req): Promise<FavoriteResponseDto[]> {
+  async findAll(@Request() req: AuthenticatedRequest): Promise<FavoriteResponseDto[]> {
     const favorites = await this.favoritesService.findAll(req.user);
-    return favorites.map(favorite =>
-      this.favoritesService.mapToResponseDto(favorite),
-    );
+    return Promise.all(favorites.map(favorite => 
+      this.favoritesService.mapToResponseDto(favorite)
+    ));
   }
 
   @Get(':id')
@@ -65,7 +66,7 @@ export class FavoritesController {
   })
   async findOne(
     @Param('id') id: string,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<FavoriteResponseDto> {
     const favorite = await this.favoritesService.findOne(id, req.user);
     return this.favoritesService.mapToResponseDto(favorite);
