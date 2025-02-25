@@ -33,8 +33,8 @@ export class FavoritesService {
 
     const existingFavorite = await this.favoritesRepository.findOne({
       where: {
-        user: { id: user.id },
-        listing: { id: listing.id },
+        user: { id: user.id }, // Consulta correcta por ID
+        listing: { id: listing.id }, // Consulta correcta por ID
       },
     });
 
@@ -47,58 +47,52 @@ export class FavoritesService {
       listing,
     });
 
-    await this.favoritesRepository.save(favorite);
+    const savedFavorite = await this.favoritesRepository.save(favorite);
 
-    // Notify the listing owner
+    // Notify the listing owner *solo si* no es el mismo usuario
     if (listing.seller.id !== user.id) {
-      await this.notificationsService.createNewFavoriteNotification(
-        listing.seller,
-        user,
-        listing,
-      );
+      await this.notificationsService.createNewFavoriteNotification(savedFavorite); //  Un solo argumento
     }
 
-    return favorite;
+    return savedFavorite;
   }
 
-  async findAll(user: User): Promise<Favorite[]> {
-    return this.favoritesRepository.find({
-      where: { user: { id: user.id } },
-      relations: ['listing', 'listing.seller', 'listing.categories'],
-      order: { createdAt: 'DESC' },
-    });
-  }
-
-  async findOne(id: string, user: User): Promise<Favorite> {
-    const favorite = await this.favoritesRepository.findOne({
-      where: { id, user: { id: user.id } },
-      relations: ['listing', 'listing.seller', 'listing.categories'],
-    });
-
-    if (!favorite) {
-      throw new NotFoundException('Favorite not found');
+    async findAll(user: User): Promise<Favorite[]> {
+        return this.favoritesRepository.find({
+            where: { user: { id: user.id } }, //  consulta por ID
+            relations: ['listing', 'listing.seller', 'listing.categories'],
+            order: { createdAt: 'DESC' },
+        });
     }
 
-    return favorite;
-  }
+    async findOne(id: string, user: User): Promise<Favorite> {
+        const favorite = await this.favoritesRepository.findOne({
+            where: { id, user: { id: user.id } }, //  consulta por ID
+            relations: ['listing', 'listing.seller', 'listing.categories'],
+        });
+
+        if (!favorite) {
+            throw new NotFoundException('Favorite not found');
+        }
+
+        return favorite;
+    }
 
   async remove(id: string, user: User): Promise<void> {
-    const favorite = await this.findOne(id, user);
+    const favorite = await this.findOne(id, user); // Ya comprueba el usuario
     await this.favoritesRepository.remove(favorite);
   }
 
   async removeAll(user: User): Promise<void> {
-    const favorites = await this.favoritesRepository.find({
-      where: { user: { id: user.id } },
-    });
-    await this.favoritesRepository.remove(favorites);
+    // No es necesario buscar primero, se puede eliminar directamente
+    await this.favoritesRepository.delete({ user: { id: user.id } });
   }
 
-  async mapToResponseDto(favorite: Favorite) {
-    return {
-      id: favorite.id,
-      listing: favorite.listing,
-      createdAt: favorite.createdAt,
-    };
-  }
-} 
+    async mapToResponseDto(favorite: Favorite) {
+        return {
+        id: favorite.id,
+        listing: favorite.listing, // Se devuelve el listing completo
+        createdAt: favorite.createdAt
+        }
+    }
+}

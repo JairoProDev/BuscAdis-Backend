@@ -7,6 +7,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  ParseUUIDPipe, //  ParseUUIDPipe
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FavoritesService } from './favorites.service';
 import { CreateFavoriteDto, FavoriteResponseDto } from './dto/favorite.dto';
 import { AuthenticatedRequest } from '../../common/types/request.type';
+
 
 @ApiTags('favorites')
 @Controller('favorites')
@@ -35,10 +37,12 @@ export class FavoritesController {
     type: FavoriteResponseDto,
   })
   async create(
-    @Param('listingId') listingId: string,
-    @Request() req: AuthenticatedRequest,
+    @Param('listingId', ParseUUIDPipe) listingId: string, // Usa ParseUUIDPipe
+    @Request() req: AuthenticatedRequest, //  AuthenticatedRequest
   ): Promise<FavoriteResponseDto> {
-    const favorite = await this.favoritesService.create(listingId, req.user);
+    // Crea el DTO correctamente.
+    const createFavoriteDto: CreateFavoriteDto = { listingId };
+    const favorite = await this.favoritesService.create(createFavoriteDto, req.user);
     return this.favoritesService.mapToResponseDto(favorite);
   }
 
@@ -49,9 +53,12 @@ export class FavoritesController {
     description: 'Returns an array of favorites',
     type: [FavoriteResponseDto],
   })
-  async findAll(@Request() req: AuthenticatedRequest): Promise<FavoriteResponseDto[]> {
+  async findAll(
+      @Request() req: AuthenticatedRequest, //  AuthenticatedRequest
+    ): Promise<FavoriteResponseDto[]>
+    {
     const favorites = await this.favoritesService.findAll(req.user);
-    return Promise.all(favorites.map(favorite => 
+    return Promise.all(favorites.map(favorite =>
       this.favoritesService.mapToResponseDto(favorite)
     ));
   }
@@ -65,8 +72,8 @@ export class FavoritesController {
     type: FavoriteResponseDto,
   })
   async findOne(
-    @Param('id') id: string,
-    @Request() req: AuthenticatedRequest,
+    @Param('id', ParseUUIDPipe) id: string, // Usa ParseUUIDPipe
+    @Request() req: AuthenticatedRequest, //  AuthenticatedRequest
   ): Promise<FavoriteResponseDto> {
     const favorite = await this.favoritesService.findOne(id, req.user);
     return this.favoritesService.mapToResponseDto(favorite);
@@ -79,7 +86,11 @@ export class FavoritesController {
     status: 200,
     description: 'The listing has been successfully removed from favorites.',
   })
-  async remove(@Param('id') id: string, @Request() req): Promise<void> {
+  async remove(
+      @Param('id', ParseUUIDPipe) id: string,  //  ParseUUIDPipe
+      @Request() req: AuthenticatedRequest, //  AuthenticatedRequest
+    ): Promise<void>
+    {
     return this.favoritesService.remove(id, req.user);
   }
 
@@ -89,7 +100,7 @@ export class FavoritesController {
     status: 200,
     description: 'All favorites have been successfully removed.',
   })
-  async removeAll(@Request() req): Promise<void> {
+  async removeAll(@Request() req: AuthenticatedRequest): Promise<void> { //  AuthenticatedRequest
     return this.favoritesService.removeAll(req.user);
   }
-} 
+}
