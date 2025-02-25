@@ -6,44 +6,41 @@ import {
   IsObject,
   IsBoolean,
   IsDate,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { NotificationType } from '../entities/notification.entity';
 
 export class CreateNotificationDto {
-  @ApiProperty({ enum: NotificationType })
-  @IsEnum(NotificationType)
-  type: NotificationType;
-
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   title: string;
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   message: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsObject()
-  data?: Record<string, any>;
+  @ApiProperty({ enum: NotificationType })
+  @IsEnum(NotificationType)
+  type: NotificationType;
 
-  @ApiPropertyOptional()
+  @ApiProperty({ required: false })
+  @IsObject()
   @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  expiresAt?: Date;
+  data?: Record<string, any>;
 }
 
 export class UpdateNotificationDto {
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsBoolean()
+  @IsOptional()
   isRead?: boolean;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsBoolean()
+  @IsOptional()
   isActive?: boolean;
 }
 
@@ -52,16 +49,13 @@ export class NotificationResponseDto {
   id: string;
 
   @ApiProperty()
-  type: NotificationType;
-
-  @ApiProperty()
   title: string;
 
   @ApiProperty()
   message: string;
 
-  @ApiPropertyOptional()
-  data?: Record<string, any>;
+  @ApiProperty({ enum: NotificationType })
+  type: NotificationType;
 
   @ApiProperty()
   isRead: boolean;
@@ -70,12 +64,15 @@ export class NotificationResponseDto {
   isActive: boolean;
 
   @ApiProperty()
+  data?: Record<string, any>;
+
+  @ApiProperty()
   createdAt: Date;
 
-  @ApiPropertyOptional()
+  @ApiProperty()
   readAt?: Date;
 
-  @ApiPropertyOptional()
+  @ApiProperty()
   expiresAt?: Date;
 }
 
