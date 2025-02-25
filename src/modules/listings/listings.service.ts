@@ -6,9 +6,9 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, MoreThan, Like, FindOptionsWhere } from 'typeorm';
+import { Repository, In, MoreThan, Like, FindOptionsWhere, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
-import * as slugify from 'slugify';
+import slugify from 'slugify'; // Importación por defecto
 import { Listing, ListingStatus } from './entities/listing.entity';
 import { User } from '../users/entities/user.entity';
 import { Category } from '../categories/entities/category.entity';
@@ -20,6 +20,8 @@ import {
   SearchListingDto,
   ListingResponseDto,
 } from './dto/listing.dto';
+import { SearchResponse } from '@elastic/elasticsearch/lib/api/types';
+
 
 @Injectable()
 export class ListingsService {
@@ -41,7 +43,7 @@ export class ListingsService {
       index: this.indexName,
     });
 
-    if (!checkIndex) {
+    if (!checkIndex.value) { // Cambiado .body por .value
       await this.elasticsearchService.indices.create({
         index: this.indexName,
         body: {
@@ -56,9 +58,9 @@ export class ListingsService {
               priceType: { type: 'keyword' },
               status: { type: 'keyword' },
               location: {
-                type: 'geo_point',
-                properties: {
-                  coordinates: { type: 'geo_point' },
+                type: 'geo_point', // Esto creo que esta bien
+                properties: { //Revisar
+                  coordinates: { type: 'geo_point' }, //Revisar
                   address: { type: 'text' },
                   city: { type: 'keyword' },
                   state: { type: 'keyword' },
@@ -66,7 +68,7 @@ export class ListingsService {
                 },
               },
               categoryIds: { type: 'keyword' },
-              ownerId: { type: 'keyword' },
+              ownerId: { type: 'keyword' }, //Esto creo que no va
               isActive: { type: 'boolean' },
               isFeatured: { type: 'boolean' },
               isVerified: { type: 'boolean' },
@@ -86,9 +88,9 @@ export class ListingsService {
     owner: User,
   ): Promise<Listing> {
     try {
-      const slug = this.generateSlug(quickListingDto.title);
+      const slug = this.generateSlug(quickListingDto.title ?? ''); // Ya es correcto, y manejo de nullish
 
-      // Validaciones mínimas
+      // Validaciones mínimas (ya las tienes, las dejo)
       if (!quickListingDto.title) {
         throw new BadRequestException('El título es requerido');
       }
@@ -101,10 +103,10 @@ export class ListingsService {
 
       // Handle media files if present
       let mediaUrls: string[] = [];
-      if (quickListingDto.media?.length > 0) {
+      if (quickListingDto.images?.length > 0) { // Usar images en lugar de media
         try {
           mediaUrls = await Promise.all(
-            quickListingDto.media.map(file => this.storageService.uploadFile(file))
+            quickListingDto.images.map(file => this.storageService.uploadFile(file)),
           );
         } catch (error) {
           console.error('Error uploading media:', error);
@@ -116,22 +118,31 @@ export class ListingsService {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 30);
 
+
+      // Buscar categorias basado en categoryIds.  Usamos el operador '|| []'
+      // para manejar el caso donde categoryIds sea undefined.
+        const categories = await this.categoryRepository.find({
+            where: { id: In(quickListingDto.categoryIds || []) },
+        });
+
+
       const listing = await this.listingRepository.save({
         title: quickListingDto.title,
         description: quickListingDto.description,
         slug,
-        owner,
+        seller: owner, // Corregido:  la propiedad en Listing se llama 'seller'
         type: quickListingDto.type,
-        category: quickListingDto.category,
+        categories: categories, // Asignar las categorias encontradas
         contact: quickListingDto.contact,
         location: quickListingDto.location,
-        price: quickListingDto.price,
-        media: mediaUrls.map((url, index) => ({
+        price: quickListingDto.price, //Ya viene de QuickListingDto
+        images: mediaUrls.map((url, index) => ({ //Cambié media por images.
           url,
           order: index,
-          isPrimary: index === 0
+          isPrimary: index === 0, //Si quieres añadir isPrimary.
+          alt: ''
         })),
-        status: 'ACTIVE',
+        status: ListingStatus.ACTIVE,  // Usar el enum, no la cadena directamente
         publishedAt: new Date(),
         expiresAt,
         isActive: true,
@@ -154,8 +165,9 @@ export class ListingsService {
       if (error instanceof BadRequestException) {
         throw error;
       }
+      //Si no quieres pasar el error completo, es preferible enviar solo el mensaje.
       throw new BadRequestException(
-        error.message || 'Error al crear el anuncio. Por favor intenta de nuevo.'
+        (error as Error).message || 'Error al crear el anuncio.  Por favor intenta de nuevo.',
       );
     }
   }
@@ -167,8 +179,8 @@ export class ListingsService {
   }
 
   async create(createListingDto: CreateListingDto, seller: User): Promise<Listing> {
-    const slug = slugify(createListingDto.title, { lower: true });
-    
+    const slug = slugify(createListingDto.title ?? '', { lower: true }); // Ya es correcto, manejo de nullish
+
     const existingListing = await this.listingRepository.findOne({
       where: { slug },
     });
@@ -205,14 +217,14 @@ export class ListingsService {
         isUrgent: 'DESC',
         publishedAt: 'DESC',
       },
-      relations: ['owner', 'category'],
+      relations: ['seller', 'category'], // Corregido: la relación se llama 'seller'
     });
   }
 
   async findOne(id: string): Promise<Listing> {
     const listing = await this.listingRepository.findOne({
       where: { id },
-      relations: ['owner', 'category'],
+      relations: ['seller', 'category'], // Corregido: la relación se llama 'seller'
     });
 
     if (!listing) {
@@ -238,26 +250,32 @@ export class ListingsService {
     }
 
     if (updateListingDto.title) {
-      const newSlug = slugify(updateListingDto.title, { lower: true });
+      const newSlug = slugify(updateListingDto.title, { lower: true }); // Ya es correcto
       const existingListing = await this.listingRepository.findOne({
         where: { slug: newSlug },
       });
 
       if (existingListing && existingListing.id !== id) {
         const timestamp = Date.now();
-        updateListingDto['slug'] = `${newSlug}-${timestamp}`;
+        // Usamos directamente la propiedad `slug` del DTO.
+        updateListingDto.slug = `${newSlug}-${timestamp}`;
       } else {
-        updateListingDto['slug'] = newSlug;
+         updateListingDto.slug = newSlug; //Asignar directamente a updateListingDto
       }
+    }
+    //Usar una interface para añadir publishedAt.
+    interface UpdateListingDtoWithPublishedAt extends UpdateListingDto {
+        publishedAt?: Date;
     }
 
     if (updateListingDto.status === ListingStatus.PUBLISHED && !listing.publishedAt) {
-      updateListingDto['publishedAt'] = new Date();
+      // Usamos la interface.
+        (updateListingDto as UpdateListingDtoWithPublishedAt).publishedAt = new Date();
     }
 
     Object.assign(listing, updateListingDto);
     const updatedListing = await this.listingRepository.save(listing);
-    await this.indexListing(updatedListing);
+    await this.indexListing(updatedListing); //Pasamos updatedListing, que es de tipo Listing.
 
     return updatedListing;
   }
@@ -276,7 +294,7 @@ export class ListingsService {
     });
   }
 
-  async search(searchDto: SearchListingDto) {
+async search(searchDto: SearchListingDto) {
     const where: FindOptionsWhere<Listing> = {
       isActive: true,
       status: ListingStatus.ACTIVE,
@@ -293,23 +311,48 @@ export class ListingsService {
     }
 
     // Filtro por ubicación
-    if (searchDto.location?.district) {
-      where.location = {
-        district: searchDto.location.district,
-        region: searchDto.location.region,
-      };
+  //Si no existe location, coordenadas no existe, si existe coordenadas, existe lat y lon.
+
+    if (searchDto.location?.latitude && searchDto.location?.longitude)
+    {
+       //Ejemplo usando búsqueda por cercanía, ajusta según tu base de datos.
+
+        const radiusInMeters = (searchDto.location.radius ?? 10) * 1000; //Valor por defecto.
+
+        //Para usar la función `geoCircle` necesitas un plugin como `typeorm-extension`.
+        // where.location = {
+        //     $geoWithin: {
+        //         $centerSphere: [[searchDto.location.longitude, searchDto.location.latitude], radiusInMeters / 6378100] //Radio de la tierra en metros.
+        //     }
+        // };
+        //Para una búsqueda simple por rango:
+        const lat = searchDto.location.latitude;
+        const lon = searchDto.location.longitude;
+        const range = 0.1; //Ajustar
+
+        where.location = {
+          coordinates: {
+             lat: Between(lat - range, lat + range),
+             lon: Between(lon - range, lon + range)
+          }
+
+        } as FindOptionsWhere<Listing>; //Aserción porque coordinates no matchea con el tipo esperado.
+
+
     }
 
+
     // Filtro por rango de precios
-    if (searchDto.price?.min || searchDto.price?.max) {
-      where.price = {};
-      if (searchDto.price.min) {
-        where.price.amount = searchDto.price.min;
-      }
-      if (searchDto.price.max) {
-        where.price.amount = searchDto.price.max;
-      }
+     if (searchDto.price?.min || searchDto.price?.max) {
+        if (searchDto.price.min && searchDto.price.max) {
+            where.price = Between(searchDto.price.min, searchDto.price.max);
+        } else if (searchDto.price.min) {
+            where.price = MoreThanOrEqual(searchDto.price.min);
+        } else if (searchDto.price.max) {
+            where.price = LessThanOrEqual(searchDto.price.max);
+        }
     }
+
 
     const [items, total] = await this.listingRepository.findAndCount({
       where,
@@ -318,19 +361,20 @@ export class ListingsService {
         isUrgent: 'DESC',
         createdAt: 'DESC',
       },
-      skip: (searchDto.page - 1) * searchDto.limit,
-      take: searchDto.limit,
-      relations: ['owner', 'category'],
+      skip: (searchDto.page ?? 1 - 1) * (searchDto.limit ?? 10), //Valores por defecto.
+      take: searchDto.limit ?? 10, // Valores por defecto.
+      relations: ['seller', 'category'], // Corregido: la relación se llama 'seller'
     });
 
     return {
       items,
       total,
-      page: searchDto.page,
-      limit: searchDto.limit,
-      pages: Math.ceil(total / searchDto.limit),
+      page: searchDto.page ?? 1, //Valores por defecto
+      limit: searchDto.limit ?? 10,//Valores por defecto
+      pages: Math.ceil(total / (searchDto.limit ?? 10)), //Valores por defecto
     };
   }
+
 
   private async indexListing(listing: Listing) {
     const document = {
@@ -346,13 +390,13 @@ export class ListingsService {
         ? {
             ...listing.location,
             coordinates: {
-              lat: listing.location.coordinates.latitude,
-              lon: listing.location.coordinates.longitude,
+              lat: listing.location.coordinates.lat, // Simplificado
+              lon: listing.location.coordinates.lon, // Simplificado
             },
           }
         : undefined,
-      categoryIds: listing.categories.map(c => c.id),
-      ownerId: listing.seller.id,
+        categoryIds: listing.category ? [listing.category.id] : [], // category en singular
+      sellerId: listing.seller.id, // Corregido a seller
       isActive: listing.isActive,
       isFeatured: listing.isFeatured,
       isVerified: listing.isVerified,
@@ -362,14 +406,16 @@ export class ListingsService {
       expiresAt: listing.expiresAt,
     };
 
-    await this.elasticsearchService.index({
+     await this.elasticsearchService.index<SearchResponse<typeof document>>({ //Usa el tipo para el body
       index: this.indexName,
       id: listing.id,
-      body: document,
+      body: document, //Se infiere el tipo
     });
   }
 
-  private mapToResponseDto(listing: Listing): ListingResponseDto {
+
+  //No es necesario, se puede usar directamente en el controller.
+  mapToResponseDto(listing: Listing): ListingResponseDto {
     const { seller, ...listingData } = listing;
     return {
       ...listingData,
@@ -381,5 +427,4 @@ export class ListingsService {
       },
     };
   }
-} 
-
+}
