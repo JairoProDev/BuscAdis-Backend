@@ -10,7 +10,8 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ReportReason, ReportStatus } from '../entities/report.entity';
+import { ReportReason, ReportStatus, ReportType } from '../entities/report.entity';
+import { ListingType } from '../../listings/entities/listing.entity';
 
 class EvidenceDto {
   @ApiProperty({ type: [String], description: 'URLs of evidence (images, documents, etc.)' })
@@ -25,24 +26,20 @@ class EvidenceDto {
 }
 
 export class CreateReportDto {
-  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
-  @IsUUID()
-  listingId: string;
+  @ApiProperty({ enum: ReportType })
+  type: ReportType;
 
-  @ApiProperty({ enum: ReportReason })
-  @IsEnum(ReportReason)
-  reason: ReportReason;
+  @ApiProperty()
+  reason: string;
 
-  @ApiProperty({ example: 'This listing contains inappropriate content...' })
-  @IsString()
-  @MinLength(20)
+  @ApiProperty()
   description: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => EvidenceDto)
-  evidence?: EvidenceDto;
+  reportedUserId?: string;
+
+  @ApiPropertyOptional()
+  listingId?: string;
 }
 
 export class UpdateReportDto {
@@ -57,51 +54,58 @@ export class UpdateReportDto {
   adminNotes?: string;
 }
 
-export class ReportResponseDto {
+class UserInfo {
   @ApiProperty()
   id: string;
 
   @ApiProperty()
-  reporter: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
+  firstName: string;
 
   @ApiProperty()
-  listing: {
-    id: string;
-    title: string;
-    slug: string;
-    type: string;
-  };
+  lastName: string;
 
   @ApiProperty()
-  reason: ReportReason;
+  email: string;
+}
+
+class ListingInfo {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  title: string;
+
+  @ApiProperty()
+  slug: string;
+
+  @ApiProperty({ enum: ListingType })
+  type: ListingType;
+}
+
+export class ReportResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ enum: ReportType })
+  type: ReportType;
+
+  @ApiProperty()
+  reason: string;
 
   @ApiProperty()
   description: string;
 
-  @ApiProperty()
+  @ApiProperty({ enum: ReportStatus })
   status: ReportStatus;
 
-  @ApiPropertyOptional()
-  adminNotes?: string;
+  @ApiProperty()
+  reporter: UserInfo;
 
   @ApiPropertyOptional()
-  evidence?: {
-    urls: string[];
-    description: string;
-  };
+  reportedUser?: UserInfo;
 
   @ApiPropertyOptional()
-  reviewedBy?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
+  listing?: ListingInfo;
 
   @ApiProperty()
   createdAt: Date;

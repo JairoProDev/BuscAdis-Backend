@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, TreeRepository, FindOptionsWhere, ILike } from 'typeorm'; // Importa ILike
 import { ElasticsearchService } from '@nestjs/elasticsearch';
@@ -9,6 +9,7 @@ import { SearchResponse, SearchHit } from '@elastic/elasticsearch/lib/api/types'
 
 @Injectable()
 export class CategoriesService {
+  private readonly logger = new Logger(CategoriesService.name);
   private readonly indexName = 'categories';
 
   constructor(
@@ -171,7 +172,7 @@ export class CategoriesService {
 
     async search(query: string): Promise<Category[]> {
         try {
-            const { hits } = await this.elasticsearchService.search<SearchResponse<Category>>({ //Usa el SearchResponse
+            const response = await this.elasticsearchService.search<Category>({
                 index: this.indexName,
                 body: {
                     query: {
@@ -184,16 +185,20 @@ export class CategoriesService {
                 },
             });
 
-            if (hits.total === 0) {
-                return []; //Si no hay resultados.
+            const categories = response.hits.hits.map((hit) => ({
+                ...hit._source,
+                id: hit._id,
+                score: hit._score,
+            } as Category));
+
+            if (categories.length === 0) {
+                return [];
             }
 
-            const categories = hits.hits.map((hit: SearchHit<Category>) => hit._source!); //  SearchHit<Category>
             return categories;
-
         } catch (error) {
-            console.error("Error searching in elasticsearch, searching in database...", error)
-            // Fallback a TypeORM si Elasticsearch falla
+            this.logger.error('Error searching categories:', (error as Error).message);
+            // Fallback to TypeORM if Elasticsearch fails
             return this.categoryRepository.find({
                 where: [
                     { name: ILike(`%${query}%`) },

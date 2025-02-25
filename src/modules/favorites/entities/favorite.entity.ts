@@ -1,7 +1,9 @@
 import {
   Entity,
   PrimaryGeneratedColumn,
+  Column,
   CreateDateColumn,
+  UpdateDateColumn,
   ManyToOne,
   JoinColumn,
   Unique,
@@ -10,23 +12,31 @@ import { User } from '../../users/entities/user.entity';
 import { Listing } from '../../listings/entities/listing.entity';
 
 @Entity('favorites')
-@Unique(['user', 'listing'])
+@Unique(['userId', 'listingId'])
 export class Favorite {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, user => user.favorites, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'user_id' })
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @ManyToOne(() => User, user => user.favorites, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
   user: User;
 
-  @ManyToOne(() => Listing, listing => listing.favorites, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'listing_id' })
+  @Column()
+  userId: string;
+
+  @ManyToOne(() => Listing, listing => listing.favorites, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'listingId' })
   listing: Listing;
 
-  @CreateDateColumn({ type: 'timestamp with time zone' })
-  createdAt: Date;
+  @Column()
+  listingId: string;
+
+  @Column({ default: false })
+  isNotified: boolean;
 } 

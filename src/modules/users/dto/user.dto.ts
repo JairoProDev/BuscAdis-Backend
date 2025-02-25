@@ -1,64 +1,59 @@
-import { IsEmail, IsString, IsOptional, IsEnum, IsBoolean, IsInt, Min, IsPhoneNumber, MinLength } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsEnum, IsBoolean, IsInt, Min, IsPhoneNumber, MinLength, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { UserRole } from '../entities/user.entity';
+import { UserRole, AuthProvider } from '../entities/user.entity';
 
 export class CreateUserDto {
-  @ApiProperty({
-    example: 'john@example.com',
-    description: 'The email of the user',
-  })
+  @ApiProperty({ example: 'john.doe@example.com' })
   @IsEmail()
-  email: string = '';
+  email: string;
 
-  @ApiProperty({
-    example: 'password123',
-    description: 'The password of the user',
-    minLength: 6,
-  })
+  @ApiProperty({ example: 'John' })
   @IsString()
-  @MinLength(6)
-  password: string = '';
+  @MinLength(2)
+  @MaxLength(50)
+  firstName: string;
 
-  @ApiPropertyOptional({
-    example: 'John',
-    description: 'The first name of the user',
-  })
+  @ApiProperty({ example: 'Doe' })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  lastName: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(8)
+  password: string;
+
+  @ApiPropertyOptional({ example: '+1234567890' })
   @IsOptional()
-  @IsString()
-  firstName?: string;
-
-  @ApiPropertyOptional({
-    example: 'Doe',
-    description: 'The last name of the user',
-  })
-  @IsOptional()
-  @IsString()
-  lastName?: string;
-
-  @ApiPropertyOptional({
-    example: '+1234567890',
-    description: 'The phone number of the user',
-  })
-  @IsOptional()
-  @IsString()
+  @IsPhoneNumber()
   phone?: string;
 
   @ApiPropertyOptional({ enum: UserRole, default: UserRole.USER })
-  @IsOptional()
   @IsEnum(UserRole)
-  role?: UserRole;
+  @IsOptional()
+  role?: UserRole = UserRole.USER;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean = true;
 }
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'John' })
   @IsOptional()
   @IsString()
+  @MinLength(2)
+  @MaxLength(50)
   firstName?: string;
 
   @ApiPropertyOptional({ example: 'Doe' })
   @IsOptional()
   @IsString()
+  @MinLength(2)
+  @MaxLength(50)
   lastName?: string;
 
   @ApiPropertyOptional({ example: '+1234567890' })
@@ -69,6 +64,7 @@ export class UpdateUserDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MinLength(8)
   password?: string;
 
   @ApiPropertyOptional({ enum: UserRole })
@@ -130,59 +126,43 @@ export class LoginDto {
 }
 
 export class UserResponseDto {
-  @ApiProperty({
-    example: '123e4567-e89b-12d3-a456-426614174000',
-    description: 'The unique identifier of the user',
-  })
-  id: string = '';
+  @ApiProperty()
+  id: string;
 
-  @ApiProperty({
-    example: 'john@example.com',
-    description: 'The email of the user',
-  })
-  email: string = '';
+  @ApiProperty()
+  email: string;
 
-  @ApiProperty({
-    example: 'John',
-    description: 'The first name of the user',
-  })
-  firstName: string = '';
+  @ApiProperty()
+  firstName: string;
 
-  @ApiProperty({
-    example: 'Doe',
-    description: 'The last name of the user',
-  })
-  lastName: string = '';
+  @ApiProperty()
+  lastName: string;
 
-  @ApiProperty({
-    example: '+1234567890',
-    description: 'The phone number of the user',
-  })
-  phone: string = '';
+  @ApiPropertyOptional()
+  phoneNumber?: string;
 
-  @ApiProperty({
-    enum: UserRole,
-    example: UserRole.USER,
-    description: 'The role of the user',
-  })
-  role: UserRole = UserRole.USER;
+  @ApiProperty({ enum: UserRole })
+  role: UserRole;
 
-  @ApiProperty({
-    example: true,
-    description: 'Whether the user is active',
-  })
-  isActive: boolean = true;
+  @ApiProperty({ enum: AuthProvider })
+  provider: AuthProvider;
 
-  @ApiProperty({
-    example: false,
-    description: 'Whether the user is verified',
-  })
-  isVerified: boolean = false;
+  @ApiProperty()
+  isActive: boolean;
 
-  @ApiProperty({
-    example: '2024-01-26T12:00:00.000Z',
-    description: 'When the user was created',
-  })
-  createdAt: Date = new Date();
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+
+  @ApiPropertyOptional()
+  lastLoginAt?: Date;
+
+  @ApiProperty()
+  isVerified: boolean;
+
+  @ApiPropertyOptional()
+  oauthId?: string;
 } 
 

@@ -18,29 +18,38 @@ import { SearchDto, SearchResponseDto } from './dto/search.dto';
 
 @ApiTags('search')
 @Controller('search')
+@UseGuards(JwtAuthGuard)
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'Search listings with advanced filters' })
+  @Post('listings')
+  @ApiOperation({ summary: 'Search listings' })
   @ApiResponse({
     status: 200,
-    description: 'Returns search results with aggregations',
+    description: 'Returns search results',
     type: SearchResponseDto,
   })
-  async search(@Query() searchDto: SearchDto): Promise<SearchResponseDto> {
-    return this.searchService.search(searchDto);
+  async searchListings(@Body() searchDto: SearchDto): Promise<SearchResponseDto> {
+    return this.searchService.searchListings(searchDto);
   }
 
-  @Post('index')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create or update the search index' })
+  @Post('create-index')
+  @ApiOperation({ summary: 'Create search index' })
   @ApiResponse({
     status: 200,
-    description: 'The search index has been created or updated.',
+    description: 'Index created successfully',
   })
   async createIndex(): Promise<void> {
-    return this.searchService.createIndex();
+    await this.searchService.createIndex();
+  }
+
+  @Post('delete-index')
+  @ApiOperation({ summary: 'Delete search index' })
+  @ApiResponse({
+    status: 200,
+    description: 'Index deleted successfully',
+  })
+  async deleteIndex(): Promise<void> {
+    await this.searchService.deleteIndex();
   }
 } 

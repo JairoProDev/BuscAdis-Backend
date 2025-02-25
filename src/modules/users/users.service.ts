@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, ILike } from 'typeorm';
-import { User } from './entities/user.entity';
-import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
+import { User, AuthProvider } from './entities/user.entity';
+import { CreateUserDto, UpdateUserDto, UserResponseDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { SearchResponse, SearchHit } from '@elastic/elasticsearch/lib/api/types';
@@ -57,34 +57,45 @@ export class UsersService {
     }
   }
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
+  async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    const existingUser = await this.usersRepository.findOne({
+      where: { email: createUserDto.email },
+    });
 
-    const user = this.usersRepository.create(createUserDto);
-
-    if (createUserDto.password) {
-      user.password = await bcrypt.hash(createUserDto.password, 10);
+    if (existingUser) {
+      throw new BadRequestException('Email already exists');
     }
 
-    return this.usersRepository.save(user);
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const user = this.usersRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+      provider: AuthProvider.LOCAL,
+    });
+
+    const savedUser = await this.usersRepository.save(user);
+    await this.indexUser(savedUser);
+    return this.mapToResponseDto(savedUser);
   }
 
-  async findAll(): Promise<User[]> {
-    return this.usersRepository.find();
+  async findAll(): Promise<UserResponseDto[]> {
+    const users = await this.usersRepository.find();
+    return users.map(user => this.mapToResponseDto(user));
   }
 
-  async findOne(id: string): Promise<User> {
+  async findOne(id: string): Promise<UserResponseDto> {
     const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-    return user;
+    return this.mapToResponseDto(user);
   }
 
     // Find by email
     async findByEmail(email: string): Promise<User | undefined> {
         const user = await this.usersRepository.findOne({ where: { email } });
-        return user || undefined;
-      }
+        return user;
+    }
 
         // Find by phone number
     async findByPhone(phoneNumber: string): Promise<User | undefined> {
@@ -104,33 +115,35 @@ export class UsersService {
     }
 
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.findOne(id);
-    Object.assign(user, updateUserDto);
-
-     if (updateUserDto.password) {
-      user.password = await bcrypt.hash(updateUserDto.password, 10);
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
     }
-    return this.usersRepository.save(user);
+
+    if (updateUserDto.password) {
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+    }
+
+    Object.assign(user, updateUserDto);
+    const savedUser = await this.usersRepository.save(user);
+    await this.indexUser(savedUser);
+    return this.mapToResponseDto(savedUser);
   }
 
   async remove(id: string): Promise<void> {
-    const user = await this.findOne(id);
-    await this.usersRepository.remove(user);
-
-        try {
-        await this.elasticsearchService.delete({
-            index: this.indexName,
-            id: id,
-        });
-    } catch (error) {
-      this.logger.error(`Error deleting user from Elasticsearch: ${(error as Error).message}`, (error as Error).stack);
+    const user = await this.usersRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
     }
+
+    await this.usersRepository.remove(user);
+    await this.removeFromIndex(id);
   }
 
-    async search(query: string): Promise<User[]> {
+    async search(query: string): Promise<UserResponseDto[]> {
         try {
-            const response = await this.elasticsearchService.search<SearchResponse<User>>({ // TIPADO CORRECTO
+            const response = await this.elasticsearchService.search<User>({
                 index: this.indexName,
                 body: {
                     query: {
@@ -143,21 +156,23 @@ export class UsersService {
                 },
             });
 
-            const users = response.hits.hits.map((hit: SearchHit<User>) => hit._source!);
-            if (users.length === 0) {
-                return [];
-            }
-            return users;
+            const users = response.hits.hits.map((hit) => ({
+                ...hit._source,
+                id: hit._id,
+            } as User));
+
+            return users.map(user => this.mapToResponseDto(user));
         } catch (error) {
             this.logger.error('Error searching users:', (error as Error).message, (error as Error).stack);
-            // Fallback a TypeORM si Elasticsearch falla
-            return this.usersRepository.find({
+            // Fallback to TypeORM if Elasticsearch fails
+            const users = await this.usersRepository.find({
                 where: [
                     { firstName: ILike(`%${query}%`) },
                     { lastName: ILike(`%${query}%`) },
                     { email: ILike(`%${query}%`) },
                 ],
             });
+            return users.map(user => this.mapToResponseDto(user));
         }
     }
 
@@ -185,5 +200,34 @@ export class UsersService {
         } catch (error) {
             this.logger.error(`Error indexing user in Elasticsearch: ${(error as Error).message}`, (error as Error).stack)
         }
+    }
+
+    private async removeFromIndex(id: string): Promise<void> {
+        try {
+            await this.elasticsearchService.delete({
+                index: this.indexName,
+                id,
+            });
+        } catch (error) {
+            this.logger.error('Error removing user from index:', error);
+        }
+    }
+
+    private mapToResponseDto(user: User): UserResponseDto {
+        const response = new UserResponseDto();
+        response.id = user.id;
+        response.email = user.email;
+        response.firstName = user.firstName;
+        response.lastName = user.lastName;
+        response.phoneNumber = user.phoneNumber;
+        response.role = user.role;
+        response.provider = user.provider;
+        response.isActive = user.isActive;
+        response.createdAt = user.createdAt;
+        response.updatedAt = user.updatedAt;
+        response.lastLoginAt = user.lastLoginAt;
+        response.isVerified = user.isVerified;
+        response.oauthId = user.oauthId;
+        return response;
     }
 }

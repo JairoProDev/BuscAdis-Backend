@@ -14,6 +14,7 @@ export enum MessageStatus {
   SENT = 'sent',
   DELIVERED = 'delivered',
   READ = 'read',
+  DELETED = 'deleted',
 }
 
 @Entity('messages')
@@ -21,26 +22,15 @@ export class Message {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, user => user.sentMessages, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'sender_id' })
-  sender: User;
-
-  @ManyToOne(() => User, user => user.receivedMessages, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'receiver_id' })
-  receiver: User;
-
-  @ManyToOne(() => Listing, listing => listing.messages, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'listing_id' })
-  listing: Listing;
-
-  @Column({ type: 'text' })
+  @Column('text')
   content: string;
+
+  @Column({
+    type: 'enum',
+    enum: MessageStatus,
+    default: MessageStatus.SENT,
+  })
+  status: MessageStatus;
 
   @Column({ default: false })
   isRead: boolean;
@@ -51,12 +41,33 @@ export class Message {
   @Column({ default: false })
   isDeleted: boolean;
 
-  @CreateDateColumn({ type: 'timestamp with time zone' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ type: 'timestamp with time zone' })
-  updatedAt: Date;
-
   @Column({ nullable: true })
   readAt?: Date;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @ManyToOne(() => User, user => user.sentMessages, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'senderId' })
+  sender: User;
+
+  @Column()
+  senderId: string;
+
+  @ManyToOne(() => User, user => user.receivedMessages, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'receiverId' })
+  receiver: User;
+
+  @Column()
+  receiverId: string;
+
+  @ManyToOne(() => Listing, listing => listing.messages, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'listingId' })
+  listing: Listing;
+
+  @Column()
+  listingId: string;
 } 

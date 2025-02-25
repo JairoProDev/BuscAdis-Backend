@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -16,6 +17,8 @@ import {
 
 @Injectable()
 export class ReportsService {
+  private readonly logger = new Logger(ReportsService.name);
+
   constructor(
     @InjectRepository(Report)
     private readonly reportRepository: Repository<Report>,
@@ -23,83 +26,55 @@ export class ReportsService {
     private readonly listingRepository: Repository<Listing>,
   ) {}
 
-  async create(createReportDto: CreateReportDto, reporter: User): Promise<Report> {
-    const listing = await this.listingRepository.findOne({
-      where: { id: createReportDto.listingId },
-    });
-
-    if (!listing) {
-      throw new NotFoundException('Listing not found');
-    }
-
+  async create(createReportDto: CreateReportDto, user: User): Promise<ReportResponseDto> {
     const report = this.reportRepository.create({
       ...createReportDto,
-      reporter,
-      listing,
+      reporter: user,
     });
 
-    return this.reportRepository.save(report);
+    const savedReport = await this.reportRepository.save(report);
+    return this.mapToResponseDto(savedReport);
   }
 
-  async findAll(user: User, isAdmin: boolean): Promise<Report[]> {
-    if (isAdmin) {
-      return this.reportRepository.find({
-        relations: ['reporter', 'listing', 'reviewedBy'],
-        order: { createdAt: 'DESC' },
-      });
-    }
-
-    return this.reportRepository.find({
-      where: { reporter: { id: user.id } },
-      relations: ['reporter', 'listing', 'reviewedBy'],
-      order: { createdAt: 'DESC' },
+  async findAll(): Promise<ReportResponseDto[]> {
+    const reports = await this.reportRepository.find({
+      relations: ['reporter', 'reportedUser', 'listing'],
     });
+    return reports.map(report => this.mapToResponseDto(report));
   }
 
-  async findOne(id: string, user: User, isAdmin: boolean): Promise<Report> {
+  async findOne(id: string): Promise<ReportResponseDto> {
     const report = await this.reportRepository.findOne({
       where: { id },
-      relations: ['reporter', 'listing', 'reviewedBy'],
+      relations: ['reporter', 'reportedUser', 'listing'],
     });
 
     if (!report) {
-      throw new NotFoundException('Report not found');
+      throw new NotFoundException(`Report with ID ${id} not found`);
     }
 
-    if (!isAdmin && report.reporter.id !== user.id) {
-      throw new ForbiddenException('You can only access your own reports');
-    }
-
-    return report;
+    return this.mapToResponseDto(report);
   }
 
-  async update(
-    id: string,
-    updateReportDto: UpdateReportDto,
-    user: User,
-    isAdmin: boolean,
-  ): Promise<Report> {
-    const report = await this.findOne(id, user, isAdmin);
+  async update(id: string, updateReportDto: UpdateReportDto): Promise<ReportResponseDto> {
+    const report = await this.reportRepository.findOne({
+      where: { id },
+      relations: ['reporter', 'reportedUser', 'listing'],
+    });
 
-    if (!isAdmin) {
-      throw new ForbiddenException('Only admins can update reports');
+    if (!report) {
+      throw new NotFoundException(`Report with ID ${id} not found`);
     }
 
     Object.assign(report, updateReportDto);
-
-    if (updateReportDto.status === ReportStatus.RESOLVED && !report.resolvedAt) {
-      report.resolvedAt = new Date();
-      report.reviewedBy = user;
-    }
-
-    return this.reportRepository.save(report);
+    const updatedReport = await this.reportRepository.save(report);
+    return this.mapToResponseDto(updatedReport);
   }
 
-  async remove(id: string, user: User, isAdmin: boolean): Promise<void> {
-    const report = await this.findOne(id, user, isAdmin);
-
-    if (!isAdmin && report.reporter.id !== user.id) {
-      throw new ForbiddenException('You can only delete your own reports');
+  async remove(id: string): Promise<void> {
+    const report = await this.reportRepository.findOne({ where: { id } });
+    if (!report) {
+      throw new NotFoundException(`Report with ID ${id} not found`);
     }
 
     await this.reportRepository.remove(report);
@@ -108,31 +83,28 @@ export class ReportsService {
   private mapToResponseDto(report: Report): ReportResponseDto {
     return {
       id: report.id,
+      type: report.type,
+      reason: report.reason,
+      description: report.description,
+      status: report.status,
       reporter: {
         id: report.reporter.id,
         firstName: report.reporter.firstName,
         lastName: report.reporter.lastName,
         email: report.reporter.email,
       },
-      listing: {
+      reportedUser: report.reportedUser ? {
+        id: report.reportedUser.id,
+        firstName: report.reportedUser.firstName,
+        lastName: report.reportedUser.lastName,
+        email: report.reportedUser.email,
+      } : undefined,
+      listing: report.listing ? {
         id: report.listing.id,
         title: report.listing.title,
         slug: report.listing.slug,
-        type: report.listing.type,
-      },
-      reason: report.reason,
-      description: report.description,
-      status: report.status,
-      adminNotes: report.adminNotes,
-      evidence: report.evidence,
-      reviewedBy: report.reviewedBy
-        ? {
-            id: report.reviewedBy.id,
-            firstName: report.reviewedBy.firstName,
-            lastName: report.reviewedBy.lastName,
-            email: report.reviewedBy.email,
-          }
-        : undefined,
+        type: report.listing.type
+      } : undefined,
       createdAt: report.createdAt,
       updatedAt: report.updatedAt,
       resolvedAt: report.resolvedAt,

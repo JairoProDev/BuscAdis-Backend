@@ -6,23 +6,25 @@ import {
   UpdateDateColumn,
   OneToMany,
   BeforeInsert,
-  BeforeUpdate, //  BeforeUpdate  importante para actualizar la contraseña
+  BeforeUpdate,
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Listing } from '../../listings/entities/listing.entity';
 import { Message } from '../../messages/entities/message.entity';
-import { Favorite } from '../../favorites/entities/favorite.entity'; //  Favorite
+import { Report } from '../../reports/entities/report.entity';
+import { Favorite } from '../../favorites/entities/favorite.entity';
+import { Notification } from '../../notifications/entities/notification.entity';
 
 export enum UserRole {
-  USER = 'user',
   ADMIN = 'admin',
+  USER = 'user',
 }
 
 export enum AuthProvider {
-  LOCAL = 'local',  //  minúsculas, como buena práctica
+  LOCAL = 'local',
   GOOGLE = 'google',
   FACEBOOK = 'facebook',
-  // ... otros proveedores
+  // Añade otros proveedores si los tienes
 }
 
 @Entity('users')
@@ -33,17 +35,17 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column({ nullable: true }) // Debe ser nullable
-  password?: string; //  opcional, con ?
-
-  @Column() //  No nullable,  un valor por defecto
+  @Column()
   firstName: string;
 
-  @Column() //  No nullable,  un valor por defecto
+  @Column()
   lastName: string;
 
-  @Column({ nullable: true }) //  nullable, porque no todos los usuarios tendrán teléfono
-  phoneNumber?: string; //  phoneNumber, no phone
+  @Column({ nullable: true, select: false }) //  nullable y select: false
+  password?: string; // Opcional
+
+  @Column({ nullable: true })
+  phoneNumber?: string; //  phoneNumber, y opcional
 
   @Column({
     type: 'enum',
@@ -59,21 +61,23 @@ export class User {
   })
   provider: AuthProvider;
 
-  @Column({ nullable: true }) //  nullable, solo para proveedores externos
-  oauthId?: string; //  oauthId, no providerId.  providerId no tiene sentido
+  @Column({ nullable: true })  //  nullable, solo para usuarios OAuth
+  oauthId?: string;    //  oauthId, y opcional.
 
-  @Column({ default: true }) //  isActive, no es lo mismo que isVerified
+  @Column({ default: true }) //  isActive
   isActive: boolean;
 
-  @Column({ default: false }) //  isVerified
-  isVerified: boolean;
+  @Column({ nullable: true })
+  lastLoginAt?: Date;
 
-    // Considera eliminar estas dos, si solo usas isVerified
-  @Column({ default: false, select: false }) // , select: false  para que no se envíen por defecto
-  emailVerified: boolean;
+  @CreateDateColumn()
+  createdAt: Date;
 
-  @Column({ default: false, select: false}) // , select: false  para que no se envíen por defecto
-  phoneVerified: boolean;
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+    @Column({ default: false }) //  isVerified
+    isVerified: boolean;
 
   @OneToMany(() => Listing, listing => listing.seller)
   listings: Listing[];
@@ -84,28 +88,41 @@ export class User {
   @OneToMany(() => Message, message => message.receiver)
   receivedMessages: Message[];
 
-  @OneToMany(() => Favorite, favorite => favorite.user) //  Favorite
+  @OneToMany(() => Report, report => report.reporter)
+  reports: Report[];
+
+  @OneToMany(() => Favorite, favorite => favorite.user)
   favorites: Favorite[];
 
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
+  @OneToMany(() => Notification, notification => notification.user)
+  notifications: Notification[];
 
   @BeforeInsert()
-  @BeforeUpdate() //  IMPORTANTE:  También antes de actualizar
+  @BeforeUpdate()
+  trimFields() {
+    if (this.firstName) {
+      this.firstName = this.firstName.trim();
+    }
+    if (this.lastName) {
+      this.lastName = this.lastName.trim();
+    }
+    if (this.email) {
+      this.email = this.email.trim().toLowerCase();
+    }
+  }
+
+  @BeforeInsert()
+  @BeforeUpdate()
   async hashPassword() {
-      if (this.password && this.provider === AuthProvider.LOCAL) {
-          this.password = await bcrypt.hash(this.password, 10);
-      }
+    if (this.password && this.provider === AuthProvider.LOCAL) {
+      this.password = await bcrypt.hash(this.password, 10);
+    }
   }
 
   async validatePassword(password: string): Promise<boolean> {
     if (this.provider !== AuthProvider.LOCAL || !this.password) {
-      return false;
+      return false; //  Si no es autenticación local, no hay contraseña
     }
-    return await bcrypt.compare(password, this.password);
+    return bcrypt.compare(password, this.password);
   }
 }

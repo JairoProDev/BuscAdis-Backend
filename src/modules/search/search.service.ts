@@ -11,16 +11,66 @@ export class SearchService {
 
   constructor(private readonly elasticsearchService: ElasticsearchService) {}
 
-  async searchGeneric<T>(index: string, query: any): Promise<T[]> {
+  async search<T>(index: string, query: any): Promise<T[]> {
     try {
-      const response = await this.elasticsearchService.search<SearchResponse<T>>({
+      const response = await this.elasticsearchService.search<T>({
         index,
         ...query,
       });
 
-      return response.hits.hits.map(hit => hit._source as T);
+      return response.hits.hits.map((hit) => ({
+        ...hit._source,
+        id: hit._id,
+        score: hit._score,
+      } as T));
     } catch (error) {
       this.logger.error(`Error searching in ${index}:`, (error as Error).message);
+      throw error;
+    }
+  }
+
+  async createIndex(index: string = this.listingsIndex): Promise<void> {
+    try {
+      const exists = await this.elasticsearchService.indices.exists({ index });
+      if (!exists) {
+        await this.elasticsearchService.indices.create({
+          index,
+          body: {
+            mappings: {
+              properties: {
+                title: { type: 'text' },
+                description: { type: 'text' },
+                price: { type: 'float' },
+                location: { type: 'geo_point' },
+                categories: {
+                  type: 'nested',
+                  properties: {
+                    id: { type: 'keyword' },
+                    name: { type: 'text' },
+                    slug: { type: 'keyword' },
+                  },
+                },
+              },
+            },
+          },
+        });
+        this.logger.log(`Created index ${index}`);
+      }
+    } catch (error) {
+      this.logger.error(`Error creating index ${index}:`, (error as Error).message);
+      throw error;
+    }
+  }
+
+  async deleteIndex(index: string = this.listingsIndex): Promise<void> {
+    try {
+      const exists = await this.elasticsearchService.indices.exists({ index });
+      if (exists) {
+        await this.elasticsearchService.indices.delete({ index });
+        this.logger.log(`Deleted index ${index}`);
+      }
+    } catch (error) {
+      this.logger.error(`Error deleting index ${index}:`, (error as Error).message);
       throw error;
     }
   }

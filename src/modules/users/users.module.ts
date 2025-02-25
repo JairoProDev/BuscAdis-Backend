@@ -14,14 +14,25 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     TypeOrmModule.forFeature([User]),
     ElasticsearchModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        node: configService.get<string>('ELASTICSEARCH_NODE'),
-        auth: {
-          username: configService.get<string>('ELASTICSEARCH_USERNAME'),
-          password: configService.get<string>('ELASTICSEARCH_PASSWORD'),
-        }
-      }),
       inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => {
+        const username = configService.get<string>('ELASTICSEARCH_USERNAME');
+        const password = configService.get<string>('ELASTICSEARCH_PASSWORD');
+        const node = configService.get<string>('ELASTICSEARCH_NODE');
+
+        const config: any = {
+          node,
+        };
+
+        if (username && password) {
+          config.auth = {
+            username,
+            password,
+          };
+        }
+
+        return config;
+      },
     }),
   ],
   controllers: [UsersController],

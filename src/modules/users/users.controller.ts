@@ -9,6 +9,8 @@ import {
   Query,
   UseGuards,
   HttpStatus,
+  Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import {
@@ -17,12 +19,14 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiQuery,
+  ApiParam,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto, SearchUsersDto } from './dto/user.dto';
+import { CreateUserDto, UpdateUserDto, SearchUsersDto, UserResponseDto } from './dto/user.dto';
 import { User, UserRole } from './entities/user.entity';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { AuthenticatedRequest } from '../../common/types/request.type';
 
 @ApiTags('Users')
 @Controller('users')
@@ -34,64 +38,76 @@ export class UsersController {
   @Post()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Create a new user' })
-  @ApiResponse({ status: HttpStatus.CREATED, description: 'User created successfully' })
+  @ApiResponse({ status: HttpStatus.CREATED, description: 'User created successfully', type: UserResponseDto })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Bad Request' })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Forbidden' })
-  create(@Body() createUserDto: CreateUserDto): Promise<User> {
+  create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
     return this.usersService.create(createUserDto);
   }
 
   @Get()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Get all users' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Return all users' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Return all users', type: [UserResponseDto] })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Forbidden' })
-  findAll(): Promise<User[]> {
+  async findAll(@Request() req: AuthenticatedRequest): Promise<UserResponseDto[]> {
+    if (req.user.role !== UserRole.ADMIN) {
+      return [await this.usersService.findOne(req.user.id)];
+    }
     return this.usersService.findAll();
   }
 
   @Get('search')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Search users' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Return search results' })
-  @ApiQuery({ name: 'query', required: false })
-  @ApiQuery({ name: 'role', required: false, enum: UserRole })
-  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  search(@Query() searchDto: SearchUsersDto) {
-    return this.usersService.search(searchDto);
+  @ApiQuery({ name: 'query', required: true })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Return search results', type: [UserResponseDto] })
+  async search(@Query('query') query: string): Promise<UserResponseDto[]> {
+    return this.usersService.search(query);
   }
 
   @Get(':id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Get user by id' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Return the user' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Return the user', type: UserResponseDto })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'User not found' })
-  findOne(@Param('id') id: string): Promise<User> {
+  findOne(@Param('id') id: string): Promise<UserResponseDto> {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update user' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'User updated successfully' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'User updated successfully', type: UserResponseDto })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'User not found' })
   update(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
-  ): Promise<User> {
+    @Request() req: AuthenticatedRequest,
+  ): Promise<UserResponseDto> {
+    if (req.user.role !== UserRole.ADMIN && req.user.id !== id) {
+      throw new ForbiddenException('You can only update your own profile');
+    }
     return this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Delete user' })
+  @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({ status: HttpStatus.OK, description: 'User deleted successfully' })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'User not found' })
-  remove(@Param('id') id: string): Promise<void> {
+  remove(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ): Promise<void> {
+    if (req.user.role !== UserRole.ADMIN && req.user.id !== id) {
+      throw new ForbiddenException('You can only delete your own profile');
+    }
     return this.usersService.remove(id);
   }
 } 

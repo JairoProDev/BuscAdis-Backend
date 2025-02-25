@@ -8,7 +8,7 @@ import {
   Delete,
   UseGuards,
   Request,
-  ParseUUIDPipe, // Importa ParseUUIDPipe
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,15 +18,14 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { ReportsService } from './reports.service';
 import {
   CreateReportDto,
   UpdateReportDto,
   ReportResponseDto,
 } from './dto/report.dto';
-import { AuthenticatedRequest } from 'src/common/types/request.type'; // Importa AuthenticatedRequest
+import { AuthenticatedRequest } from '../../common/types/request.type';
+import { UserRole } from '../users/entities/user.entity';
 
 @ApiTags('reports')
 @Controller('reports')
@@ -44,30 +43,26 @@ export class ReportsController {
   })
   async create(
     @Body() createReportDto: CreateReportDto,
-    @Request() req: AuthenticatedRequest, // Usa AuthenticatedRequest
+    @Request() req: AuthenticatedRequest,
   ): Promise<ReportResponseDto> {
-    const report = await this.reportsService.create(createReportDto, req.user);
-    return this.reportsService['mapToResponseDto'](report);
+    return this.reportsService.create(createReportDto, req.user);
   }
 
   @Get()
-  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Get all reports' })
   @ApiResponse({
     status: 200,
     description: 'Returns an array of reports',
     type: [ReportResponseDto],
   })
-  async findAll(@Request() req: AuthenticatedRequest): Promise<ReportResponseDto[]> { // Usa AuthenticatedRequest
-    const reports = await this.reportsService.findAll(
-      req.user,
-      req.user.roles?.includes('admin'),
-    );
-    return reports.map(report => this.reportsService['mapToResponseDto'](report));
+  async findAll(@Request() req: AuthenticatedRequest): Promise<ReportResponseDto[]> {
+    if (req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only administrators can view all reports');
+    }
+    return this.reportsService.findAll();
   }
 
   @Get(':id')
-  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Get a report by id' })
   @ApiParam({ name: 'id', description: 'Report ID' })
   @ApiResponse({
@@ -76,20 +71,16 @@ export class ReportsController {
     type: ReportResponseDto,
   })
   async findOne(
-    @Param('id', ParseUUIDPipe) id: string, // Usa ParseUUIDPipe
-    @Request() req: AuthenticatedRequest, // Usa AuthenticatedRequest
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
   ): Promise<ReportResponseDto> {
-    const report = await this.reportsService.findOne(
-      id,
-      req.user,
-      req.user.roles?.includes('admin'),
-    );
-    return this.reportsService['mapToResponseDto'](report);
+    if (req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only administrators can view reports');
+    }
+    return this.reportsService.findOne(id);
   }
 
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
   @ApiOperation({ summary: 'Update a report' })
   @ApiParam({ name: 'id', description: 'Report ID' })
   @ApiResponse({
@@ -98,21 +89,17 @@ export class ReportsController {
     type: ReportResponseDto,
   })
   async update(
-    @Param('id', ParseUUIDPipe) id: string, // Usa ParseUUIDPipe
+    @Param('id') id: string,
     @Body() updateReportDto: UpdateReportDto,
-    @Request() req: AuthenticatedRequest, // Usa AuthenticatedRequest
+    @Request() req: AuthenticatedRequest,
   ): Promise<ReportResponseDto> {
-    const report = await this.reportsService.update(
-      id,
-      updateReportDto,
-      req.user,
-      req.user.roles?.includes('admin'),
-    );
-    return this.reportsService['mapToResponseDto'](report);
+    if (req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only administrators can update reports');
+    }
+    return this.reportsService.update(id, updateReportDto);
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Delete a report' })
   @ApiParam({ name: 'id', description: 'Report ID' })
   @ApiResponse({
@@ -120,14 +107,12 @@ export class ReportsController {
     description: 'The report has been successfully deleted.',
   })
   async remove(
-      @Param('id', ParseUUIDPipe) id: string, // Usa ParseUUIDPipe
-      @Request() req: AuthenticatedRequest, // Usa AuthenticatedRequest
-    ): Promise<void>
-    {
-    return this.reportsService.remove(
-      id,
-      req.user,
-      req.user.roles?.includes('admin'),
-    );
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ): Promise<void> {
+    if (req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only administrators can delete reports');
+    }
+    await this.reportsService.remove(id);
   }
 }

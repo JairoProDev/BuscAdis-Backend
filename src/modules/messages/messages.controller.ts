@@ -22,7 +22,6 @@ import {
   CreateMessageDto,
   UpdateMessageDto,
   MessageResponseDto,
-  ConversationDto,
 } from './dto/message.dto';
 import { AuthenticatedRequest } from '../../common/types/request.type';
 
@@ -34,10 +33,10 @@ export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Send a new message' })
+  @ApiOperation({ summary: 'Create a new message' })
   @ApiResponse({
     status: 201,
-    description: 'The message has been successfully sent.',
+    description: 'The message has been successfully created.',
     type: MessageResponseDto,
   })
   async create(
@@ -57,30 +56,21 @@ export class MessagesController {
   })
   async findAll(@Request() req: AuthenticatedRequest): Promise<MessageResponseDto[]> {
     const messages = await this.messagesService.findAll(req.user);
-    return Promise.all(messages.map(message => 
-      this.messagesService.mapToResponseDto(message)
-    ));
+    return Promise.all(messages.map(message => this.messagesService.mapToResponseDto(message)));
   }
 
-  @Get('conversation/:userId')
-  @ApiOperation({ summary: 'Get conversation with a specific user' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
+  @Get('conversations')
+  @ApiOperation({ summary: 'Get all conversations' })
   @ApiResponse({
     status: 200,
-    description: 'Returns an array of messages in the conversation',
+    description: 'Returns an array of conversations',
     type: [MessageResponseDto],
   })
-  async findConversation(
-    @Param('userId') userId: string,
-    @Request() req,
+  async getConversations(
+    @Request() req: AuthenticatedRequest,
   ): Promise<MessageResponseDto[]> {
-    const messages = await this.messagesService.findConversation(
-      req.user,
-      userId,
-    );
-    return messages.map(message =>
-      this.messagesService.mapToResponseDto(message),
-    );
+    const messages = await this.messagesService.getConversations(req.user);
+    return Promise.all(messages.map(message => this.messagesService.mapToResponseDto(message)));
   }
 
   @Get(':id')
@@ -110,13 +100,9 @@ export class MessagesController {
   async update(
     @Param('id') id: string,
     @Body() updateMessageDto: UpdateMessageDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<MessageResponseDto> {
-    const message = await this.messagesService.update(
-      id,
-      updateMessageDto,
-      req.user,
-    );
+    const message = await this.messagesService.update(id, updateMessageDto, req.user);
     return this.messagesService.mapToResponseDto(message);
   }
 
@@ -128,8 +114,8 @@ export class MessagesController {
     description: 'The message has been successfully deleted.',
   })
   async remove(
-    @Param('id') id: string, 
-    @Request() req: AuthenticatedRequest
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
   ): Promise<void> {
     await this.messagesService.remove(id, req.user);
   }

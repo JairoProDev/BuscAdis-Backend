@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  UpdateDateColumn,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
@@ -11,13 +12,10 @@ import { User } from '../../users/entities/user.entity';
 export enum NotificationType {
   MESSAGE = 'message',        //  minúsculas
   FAVORITE = 'favorite',    //  minúsculas
-  LISTING_REPORT = 'listing_report',
-  LISTING_STATUS = 'listing_status',
-  LISTING_EXPIRING = 'listing_expiring',
-  LISTING_EXPIRED = 'listing_expired', // No lo usas, pero lo dejo por si acaso
-  LISTING_FEATURED = 'listing_featured',// No lo usas, pero lo dejo
-  LISTING_VERIFIED = 'listing_verified',// No lo usas, pero lo dejo
-  LISTING_VIEWS = 'listing_views',
+  LISTING_UPDATE = 'listing_update',
+  LISTING_EXPIRED = 'listing_expired',
+  LISTING_SOLD = 'listing_sold',
+  REPORT_UPDATE = 'report_update',
   SYSTEM = 'system', // No lo usas, pero lo dejo
 }
 
@@ -26,25 +24,17 @@ export class Notification {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' }) //  'userId', más consistente con el resto del código
-  user: User; //  User, *NO* string (la relación se define aquí)
+  @Column()
+  title: string;
+
+  @Column('text')
+  message: string;
 
   @Column({
     type: 'enum',
     enum: NotificationType,
-    // default: NotificationType.MESSAGE,  //  valor por defecto (opcional)
   })
   type: NotificationType;
-
-  @Column('text')
-  title: string;
-
-  @Column('text')  // message en lugar de content
-  message: string;
-
-  @Column('jsonb', { nullable: true })
-  data?: Record<string, any>;
 
   @Column({ default: false })
   isRead: boolean;
@@ -52,12 +42,25 @@ export class Notification {
   @Column({ default: true })
   isActive: boolean;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @Column('jsonb', { nullable: true })
+  data?: Record<string, any>;
 
   @Column({ nullable: true })
   readAt?: Date;
 
   @Column({ nullable: true })
   expiresAt?: Date;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @ManyToOne(() => User, user => user.notifications, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Column()
+  userId: string;
 }

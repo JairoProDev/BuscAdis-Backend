@@ -10,14 +10,11 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { Listing } from '../../listings/entities/listing.entity';
 
-export enum ReportReason {
-  INAPPROPRIATE = 'inappropriate',
+export enum ReportType {
   SPAM = 'spam',
-  SCAM = 'scam',
-  OFFENSIVE = 'offensive',
-  ILLEGAL = 'illegal',
+  INAPPROPRIATE = 'inappropriate',
+  FRAUD = 'fraud',
   DUPLICATE = 'duplicate',
-  WRONG_CATEGORY = 'wrong_category',
   OTHER = 'other',
 }
 
@@ -33,20 +30,14 @@ export class Report {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'reporter_id' })
-  reporter: User;
-
-  @ManyToOne(() => Listing, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'listing_id' })
-  listing: Listing;
-
   @Column({
     type: 'enum',
-    enum: ReportReason,
-    default: ReportReason.OTHER,
+    enum: ReportType,
   })
-  reason: ReportReason;
+  type: ReportType;
+
+  @Column()
+  reason: string;
 
   @Column('text')
   description: string;
@@ -58,18 +49,8 @@ export class Report {
   })
   status: ReportStatus;
 
-  @Column('text', { nullable: true })
-  adminNotes?: string;
-
-  @Column('jsonb', { nullable: true })
-  evidence?: {
-    urls: string[];
-    description: string;
-  };
-
-  @ManyToOne(() => User, { nullable: true })
-  @JoinColumn({ name: 'reviewed_by_id' })
-  reviewedBy?: User;
+  @Column({ nullable: true })
+  resolvedAt?: Date;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -77,6 +58,24 @@ export class Report {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  @ManyToOne(() => User, user => user.reports, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'reporterId' })
+  reporter: User;
+
+  @Column()
+  reporterId: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'reportedUserId' })
+  reportedUser?: User;
+
   @Column({ nullable: true })
-  resolvedAt?: Date;
+  reportedUserId?: string;
+
+  @ManyToOne(() => Listing, listing => listing.reports, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'listingId' })
+  listing?: Listing;
+
+  @Column({ nullable: true })
+  listingId?: string;
 } 

@@ -1,125 +1,66 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, ValidateNested, IsArray, IsNumber, IsEnum } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  IsUUID,
+  ValidateNested,
+  MinLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-import { ListingStatus, ListingType, PriceType } from '../entities/listing.entity';
-
-export class LocationDto {
-  @ApiProperty()
-  @IsString()
-  @IsOptional()
-  district?: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsOptional()
-  region?: string;
-}
-
-export class ContactDto {
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  whatsapp: string;
-}
-
-export class PriceDto {
-  @ApiProperty()
-  @IsOptional()
-  amount?: number;
-
-  @ApiProperty()
-  @IsString()
-  @IsOptional()
-  currency?: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsOptional()
-  type?: string;
-}
-
-export class CategoryDto {
-  @ApiProperty()
-  @IsString()
-  @IsOptional()
-  id?: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsOptional()
-  name?: string;
-}
+import { ListingType, ListingStatus, PriceType } from '../entities/listing.entity';
+import { LocationDto, ContactDto } from './listing.dto';
 
 export class QuickListingDto {
-  @ApiProperty()
+  @ApiProperty({ example: 'Software Developer Position' })
   @IsString()
-  @IsNotEmpty()
+  @MinLength(5)
   title: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'Looking for a full-stack developer...' })
   @IsString()
-  @IsNotEmpty()
+  @MinLength(20)
   description: string;
+
+  @ApiProperty({ enum: ListingType })
+  @IsEnum(ListingType)
+  type: ListingType;
+
+  @ApiProperty({ enum: ListingStatus })
+  @IsEnum(ListingStatus)
+  status: ListingStatus = ListingStatus.ACTIVE;
 
   @ApiProperty()
   @IsNumber()
-  @IsOptional()
-  price?: number;
+  price: number;
 
-  @ApiProperty()
+  @ApiProperty({ enum: PriceType })
   @IsEnum(PriceType)
-  @IsOptional()
-  priceType?: PriceType;
+  priceType: PriceType;
 
-  @ApiProperty()
-  @IsEnum(ListingType)
-  @IsOptional()
-  type?: ListingType;
-
-  @ApiProperty()
-  @IsEnum(ListingStatus)
-  @IsOptional()
-  status?: ListingStatus;
-
-  @ApiProperty()
+  @ApiProperty({ type: [String] })
   @IsArray()
-  @IsOptional()
-  categoryIds?: string[];
+  @IsUUID(undefined, { each: true })
+  categoryIds: string[];
 
-  @ApiProperty()
-  @IsArray()
+  @ApiProperty({ type: [Object], required: false })
   @IsOptional()
+  @IsArray()
   images?: Express.Multer.File[];
 
-  @ApiProperty()
+  @ApiProperty({ type: () => LocationDto })
   @ValidateNested()
   @Type(() => LocationDto)
-  @IsOptional()
-  location?: {
-    address: string;
-    city: string;
-    state: string;
-    country: string;
-    coordinates?: {
-      lat: number;
-      lon: number;
-    };
-  };
+  location: LocationDto;
 
-  @ApiProperty()
+  @ApiProperty({ type: () => ContactDto })
   @ValidateNested()
   @Type(() => ContactDto)
-  @IsOptional()
-  contact?: {
-    name?: string;
-    email?: string;
-    phone?: string;
-    whatsapp?: string;
-    showEmail?: boolean;
-    showPhone?: boolean;
-  };
+  contact: ContactDto;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   metadata?: Record<string, any>;
 } 
