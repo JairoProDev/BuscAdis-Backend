@@ -81,7 +81,7 @@ export class NotificationsController {
   async update(
     @Param('id') id: string,
     @Body() updateNotificationDto: UpdateNotificationDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<NotificationResponseDto> {
     const notification = await this.notificationsService.update(
       id,

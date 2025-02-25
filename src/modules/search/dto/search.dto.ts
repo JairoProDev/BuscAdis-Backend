@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
   IsOptional,
@@ -17,14 +17,14 @@ export enum SortOption {
   RELEVANCE = 'relevance',
 }
 
-export class LocationDto {
-  @ApiProperty({ description: 'Latitude', example: 40.7128 })
+export class LocationSearchDto {
+  @ApiProperty()
   @IsNumber()
   @Min(-90)
   @Max(90)
   lat: number;
 
-  @ApiProperty({ description: 'Longitude', example: -74.0060 })
+  @ApiProperty()
   @IsNumber()
   @Min(-180)
   @Max(180)
@@ -32,68 +32,64 @@ export class LocationDto {
 }
 
 export class SearchDto {
-  @ApiPropertyOptional({ description: 'Search query', example: 'vintage camera' })
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsString()
+  @IsOptional()
   query?: string;
 
-  @ApiPropertyOptional({ description: 'Category ID or slug' })
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsString()
+  @IsOptional()
   category?: string;
 
-  @ApiPropertyOptional({ description: 'Minimum price', example: 10 })
+  @ApiProperty({ required: false })
+  @IsNumber()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
   @Min(0)
   priceMin?: number;
 
-  @ApiPropertyOptional({ description: 'Maximum price', example: 1000 })
+  @ApiProperty({ required: false })
+  @IsNumber()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
   @Min(0)
   priceMax?: number;
 
-  @ApiPropertyOptional({ description: 'Item condition' })
-  @IsOptional()
+  @ApiProperty({ required: false })
   @IsString()
+  @IsOptional()
   condition?: string;
 
-  @ApiPropertyOptional({ type: LocationDto })
+  @ApiProperty({ required: false })
   @IsOptional()
-  @Type(() => LocationDto)
-  @IsObject()
-  location?: LocationDto;
+  @Type(() => LocationSearchDto)
+  location?: LocationSearchDto;
 
-  @ApiPropertyOptional({
-    description: 'Search radius in kilometers',
-    example: 10,
-  })
+  @ApiProperty({ required: false })
+  @IsNumber()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
   @Min(0)
   @Max(500)
   radius?: number;
 
-  @ApiPropertyOptional({ enum: SortOption })
-  @IsOptional()
+  @ApiProperty({ required: false, enum: SortOption })
   @IsEnum(SortOption)
+  @IsOptional()
   sort?: SortOption;
 
-  @ApiPropertyOptional({ description: 'Page number', example: 1 })
+  @ApiProperty({ required: false, default: 1 })
+  @IsNumber()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
   @Min(1)
   page?: number;
 
-  @ApiPropertyOptional({ description: 'Items per page', example: 10 })
+  @ApiProperty({ required: false, default: 10 })
+  @IsNumber()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
   @Min(1)
   @Max(100)
   limit?: number;
@@ -116,7 +112,15 @@ export class PriceStatsDto {
   sum: number;
 }
 
-export class AggregationBucketDto {
+export class CategoryBucketDto {
+  @ApiProperty()
+  key: string;
+
+  @ApiProperty()
+  doc_count: number;
+}
+
+export class ConditionBucketDto {
   @ApiProperty()
   key: string;
 
@@ -125,29 +129,29 @@ export class AggregationBucketDto {
 }
 
 export class SearchAggregationsDto {
-  @ApiProperty({ type: PriceStatsDto })
+  @ApiProperty()
   priceStats: PriceStatsDto;
 
-  @ApiProperty({ type: [AggregationBucketDto] })
-  conditions: AggregationBucketDto[];
+  @ApiProperty({ type: [ConditionBucketDto] })
+  conditions: ConditionBucketDto[];
 
-  @ApiProperty({ type: [AggregationBucketDto] })
-  categories: AggregationBucketDto[];
+  @ApiProperty({ type: [CategoryBucketDto] })
+  categories: CategoryBucketDto[];
 }
 
 export class SearchResponseDto {
-  @ApiProperty({ description: 'Search results' })
+  @ApiProperty({ type: [Object] })
   items: any[];
 
-  @ApiProperty({ description: 'Total number of results' })
+  @ApiProperty()
   total: number;
 
-  @ApiProperty({ description: 'Current page number' })
+  @ApiProperty()
   page: number;
 
-  @ApiProperty({ description: 'Items per page' })
+  @ApiProperty()
   limit: number;
 
-  @ApiProperty({ type: SearchAggregationsDto })
+  @ApiProperty()
   aggregations: SearchAggregationsDto;
 } 
