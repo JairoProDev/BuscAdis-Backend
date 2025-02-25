@@ -10,7 +10,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ReportReason, ReportStatus, ReportType } from '../entities/report.entity';
+import { ReportStatus, ReportType } from '../entities/report.entity';
 import { ListingType } from '../../listings/entities/listing.entity';
 
 class EvidenceDto {
@@ -105,7 +105,7 @@ export class ReportResponseDto {
   reportedUser?: UserInfo;
 
   @ApiPropertyOptional()
-  listing?: ListingInfo;
+  listing?: ListingInfo | null;
 
   @ApiProperty()
   createdAt: Date;

@@ -94,7 +94,7 @@ export class UsersService {
     // Find by email
     async findByEmail(email: string): Promise<User | undefined> {
         const user = await this.usersRepository.findOne({ where: { email } });
-        return user;
+        return user || undefined;
     }
 
         // Find by phone number

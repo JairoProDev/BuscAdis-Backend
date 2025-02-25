@@ -318,102 +318,81 @@ export class ListingsService {
   }
 
     async search(searchDto: SearchListingDto) {
-        const where: FindOptionsWhere<Listing> = {
-            isActive: true,
-            status: ListingStatus.ACTIVE,
-        };
+        try {
+            const { hits } = await this.elasticsearchService.search<Listing>({
+                index: this.indexName,
+                body: {
+                    query: {
+                        bool: {
+                            must: [
+                                {
+                                    multi_match: {
+                                        query: searchDto.query || '',
+                                        fields: ['title^2', 'description'],
+                                        fuzziness: 'AUTO',
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                },
+            });
 
-        // Búsqueda por texto (usando Elasticsearch)
-        if (searchDto.query) {
-            try {
-                const { hits } = await this.elasticsearchService.search<SearchResponse<Listing>>({ // TIPADO CORRECTO
-                    index: this.indexName,
-                    body: {
-                        query: {
-                            multi_match: {
-                                query: searchDto.query,
-                                fields: ['title', 'description'],
-                                fuzziness: 'AUTO'
-                            }
-                        }
-                    }
-                });
+            const listingIds = hits.hits.map(hit => hit._source?.id || '');
 
-                const listingIds = hits.hits.map((hit: SearchHit<Listing>) => hit._source!.id); //  SearchHit<Listing>
-
-                // Si no hay resultados, retornar un array vacío
-                if(listingIds.length === 0) {
-                    return {
-                        items: [],
-                        total: 0,
-                        page: searchDto.page ?? 1,
-                        limit: searchDto.limit ?? 10,
-                        pages: 0,
-                      };
-                }
-
-
-                where.id = In(listingIds); // Usa los IDs de Elasticsearch
-
-            } catch (error) {
-                this.logger.error(`Error searching in Elasticsearch: ${(error as Error).message}`, (error as Error).stack);
-                //  podrías decidir no usar Elasticsearch y buscar por base de datos
+            if (listingIds.length === 0) {
+                return {
+                    items: [],
+                    total: 0,
+                    page: searchDto.page || 1,
+                    limit: searchDto.limit || 10,
+                };
             }
-        }
 
-        //Filtro por categoría, directamente en TypeORM
-        if (searchDto.categoryId) {
-            where.categories = { id: searchDto.categoryId } as any;
-            //Corrección, ahora category en singular.
-        }
+            let where: FindOptionsWhere<Listing> = {
+                id: In(listingIds),
+                isActive: true,
+            };
 
-        // Filtro por ubicación
-      if (searchDto.location?.latitude && searchDto.location?.longitude)
-      {
-          const lat = searchDto.location.latitude;
-          const lon = searchDto.location.longitude;
-          const range = 0.1;
-
-          where.location = {
-              coordinates: {
-                  lat: Between(lat - range, lat + range),
-                  lon: Between(lon - range, lon + range)
-                }
-
-          } as Partial<FindOptionsWhere<Listing>>;
-      }
-
-        // Filtro por rango de precios
-        if (searchDto.price?.min || searchDto.price?.max) {
-            if (searchDto.price.min && searchDto.price.max) {
-                where.price = Between(searchDto.price.min, searchDto.price.max);
-            } else if (searchDto.price.min) {
-                where.price = MoreThanOrEqual(searchDto.price.min);
-            } else if (searchDto.price.max) {
-                where.price = LessThanOrEqual(searchDto.price.max);
+            if (searchDto.type) {
+                where.type = searchDto.type;
             }
+
+            if (searchDto.status) {
+                where.status = searchDto.status;
+            }
+
+            if (searchDto.priceRange) {
+                if (searchDto.priceRange.min && searchDto.priceRange.max) {
+                    where.price = Between(searchDto.priceRange.min, searchDto.priceRange.max);
+                } else if (searchDto.priceRange.min) {
+                    where.price = MoreThanOrEqual(searchDto.priceRange.min);
+                } else if (searchDto.priceRange.max) {
+                    where.price = LessThanOrEqual(searchDto.priceRange.max);
+                }
+            }
+
+            const [listings, total] = await this.listingRepository.findAndCount({
+                where,
+                relations: ['seller', 'categories', 'images'],
+                order: {
+                    createdAt: 'DESC',
+                },
+                skip: ((searchDto.page || 1) - 1) * (searchDto.limit || 10),
+                take: searchDto.limit || 10,
+            });
+
+            return {
+                items: listings.map(listing => this.mapToResponseDto(listing)),
+                total,
+                page: searchDto.page || 1,
+                limit: searchDto.limit || 10,
+            };
+
+        } catch (error) {
+            this.logger.error(`Error searching listings: ${(error as Error).message}`, (error as Error).stack);
+            throw new BadRequestException(`Error searching listings: ${(error as Error).message}`);
         }
-
-
-        const [items, total] = await this.listingRepository.findAndCount({
-            where,
-            order: {
-                isFeatured: 'DESC',
-                isUrgent: 'DESC',
-                createdAt: 'DESC',
-            },
-            skip: (searchDto.page ?? 1 - 1) * (searchDto.limit ?? 10),
-            take: searchDto.limit ?? 10,
-            relations: ['seller', 'categories'], // Carga las relaciones, incluyendo 'categories'
-        });
-
-        return {
-            items,
-            total,
-            page: searchDto.page ?? 1,
-            limit: searchDto.limit ?? 10,
-            pages: Math.ceil(total / (searchDto.limit ?? 10)),
-        };
     }
 
   private async indexListing(listing: Listing) {
@@ -458,13 +437,6 @@ export class ListingsService {
   mapToResponseDto(listing: Listing): ListingResponseDto {
     const { seller, categories, ...listingData } = listing;
 
-    // Mapear las categorías, si existen
-    const mappedCategories = categories ? categories.map(category => ({
-      id: category.id,
-      name: category.name,
-      // ... otras propiedades de la categoría que quieras incluir
-    })) : [];
-
     return {
       ...listingData,
       seller: {
@@ -472,9 +444,16 @@ export class ListingsService {
         firstName: seller.firstName,
         lastName: seller.lastName,
         email: seller.email,
-        // ... otras propiedades del vendedor que quieras incluir en la respuesta
       },
-      categories: mappedCategories
+      categories: categories?.map(category => ({
+        id: category.id,
+        name: category.name,
+      })) || [],
+      images: listing.images?.map(image => ({
+        id: image.id,
+        url: image.url,
+        thumbnail: image.thumbnail,
+      })) || []
     };
   }
 }

@@ -1,63 +1,54 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsNumber, Min, IsObject } from 'class-validator';
-import { Type } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, IsEnum, IsNumber, IsObject, Min, Max, Type, ValidateNested } from 'class-validator';
+import { ListingType, ListingStatus } from '../entities/listing.entity';
 
-class LocationFilter {
-  @ApiProperty()
-  @IsString()
-  district: string;
-
-  @ApiProperty()
-  @IsString()
-  region: string;
-}
-
-class PriceFilter {
-  @ApiProperty()
+export class PriceRangeDto {
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  @IsOptional()
   min?: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  @IsOptional()
   max?: number;
 }
 
 export class SearchListingDto {
-  @ApiProperty({ required: false })
-  @IsString()
+  @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
   query?: string;
 
-  @ApiProperty({ required: false })
-  @IsString()
+  @ApiPropertyOptional({ enum: ListingType })
   @IsOptional()
-  categoryId?: string;
+  @IsEnum(ListingType)
+  type?: ListingType;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional({ enum: ListingStatus })
+  @IsOptional()
+  @IsEnum(ListingStatus)
+  status?: ListingStatus;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsObject()
-  @IsOptional()
-  @Type(() => LocationFilter)
-  location?: LocationFilter;
+  @ValidateNested()
+  @Type(() => PriceRangeDto)
+  priceRange?: PriceRangeDto;
 
-  @ApiProperty({ required: false })
-  @IsObject()
+  @ApiPropertyOptional({ minimum: 1, default: 1 })
   @IsOptional()
-  @Type(() => PriceFilter)
-  price?: PriceFilter;
-
-  @ApiProperty({ default: 1 })
   @IsNumber()
   @Min(1)
-  @Type(() => Number)
-  page: number = 1;
+  page?: number = 1;
 
-  @ApiProperty({ default: 10 })
+  @ApiPropertyOptional({ minimum: 1, maximum: 50, default: 10 })
+  @IsOptional()
   @IsNumber()
   @Min(1)
-  @Type(() => Number)
-  limit: number = 10;
+  @Max(50)
+  limit?: number = 10;
 } 

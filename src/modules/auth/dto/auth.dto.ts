@@ -2,12 +2,18 @@ import { IsEmail, IsString, MinLength, IsOptional, IsPhoneNumber, Matches, IsNot
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LoginDto {
-  @ApiProperty({ example: 'user@example.com' })
+  @ApiProperty({
+    example: 'john@example.com',
+    description: 'The email of the user',
+  })
   @IsEmail()
   @IsNotEmpty() // Añadido: El email no debe estar vacío
   email: string;
 
-  @ApiProperty({ example: 'Password123!' })
+  @ApiProperty({
+    example: 'password123',
+    description: 'The password of the user',
+  })
   @IsString()
   @IsNotEmpty() // Añadido: la contraseña no debe estar vacía
   @MinLength(8)
@@ -15,31 +21,35 @@ export class LoginDto {
 }
 
 export class RegisterDto {
-  @ApiProperty({ example: 'John' })
+  @ApiProperty({
+    example: 'john@example.com',
+    description: 'The email of the user',
+  })
+  @IsEmail()
+  @IsNotEmpty() // Añadido: El email no debe estar vacío
+  email: string;
+
+  @ApiProperty({
+    example: 'John',
+    description: 'The first name of the user',
+  })
   @IsString()
   @IsNotEmpty() // Añadido: El nombre no debe estar vacío
   @Matches(/^[a-zA-Z\s]+$/, { message: 'First name can only contain letters and spaces' })
   firstName: string;
 
-  @ApiProperty({ example: 'Doe' })
+  @ApiProperty({
+    example: 'Doe',
+    description: 'The last name of the user',
+  })
   @IsString()
   @IsNotEmpty() // Añadido: El apellido no debe estar vacío
   @Matches(/^[a-zA-Z\s]+$/, { message: 'Last name can only contain letters and spaces' })
   lastName: string;
 
-  @ApiProperty({ example: 'user@example.com' })
-  @IsEmail()
-  @IsNotEmpty() // Añadido: El email no debe estar vacío
-  email: string;
-
-  @ApiPropertyOptional({ example: '+1234567890' })
-  @IsOptional()
-  @IsPhoneNumber()
-  phone?: string;
-
   @ApiProperty({
-    example: 'Password123!',
-    description: 'Password must contain at least 8 characters, one uppercase letter, one number, and one special character'
+    example: 'password123',
+    description: 'The password of the user',
   })
   @IsString()
   @IsNotEmpty() // Añadido: La contraseña no debe estar vacía
@@ -49,6 +59,14 @@ export class RegisterDto {
     { message: 'Password too weak' }
   )
   password: string;
+
+  @ApiPropertyOptional({
+    example: '+1234567890',
+    description: 'The phone number of the user',
+  })
+  @IsOptional()
+  @IsPhoneNumber()
+  phoneNumber?: string;
 }
 
 export class PhoneVerificationDto {

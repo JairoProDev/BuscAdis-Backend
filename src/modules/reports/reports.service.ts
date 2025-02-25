@@ -104,7 +104,7 @@ export class ReportsService {
         title: report.listing.title,
         slug: report.listing.slug,
         type: report.listing.type
-      } : undefined,
+      } : null,
       createdAt: report.createdAt,
       updatedAt: report.updatedAt,
       resolvedAt: report.resolvedAt,

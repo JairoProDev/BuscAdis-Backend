@@ -46,41 +46,29 @@ export class ImageDto {
 }
 
 export class LocationDto {
-  @ApiProperty({
-    example: '123 Main St',
-    description: 'The street address',
-  })
+  @ApiProperty()
   @IsString()
-  address: string = '';
+  address: string;
 
-  @ApiProperty({
-    example: 'New York',
-    description: 'The city',
-  })
+  @ApiProperty()
   @IsString()
-  city: string = '';
+  city: string;
 
-  @ApiProperty({
-    example: 'NY',
-    description: 'The state',
-  })
+  @ApiProperty()
   @IsString()
-  state: string = '';
+  state: string;
 
-  @ApiProperty({
-    example: 'USA',
-    description: 'The country',
-  })
+  @ApiProperty()
   @IsString()
-  country: string = '';
+  country: string;
 
-  @ApiPropertyOptional({
-    description: 'The coordinates of the location',
-  })
+  @ApiPropertyOptional()
   @IsOptional()
-  @ValidateNested()
-  @Type(() => CoordinatesDto)
-  coordinates?: CoordinatesDto;
+  @IsObject()
+  coordinates?: {
+    lat: number;
+    lon: number;
+  };
 }
 
 export class CoordinatesDto {
@@ -99,7 +87,7 @@ export class CoordinatesDto {
   lon: number = 0;
 }
 
-class ContactDto {
+export class ContactDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -107,28 +95,26 @@ class ContactDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEmail()
+  @IsString()
   email?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsPhoneNumber()
+  @IsString()
   phone?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsPhoneNumber()
+  @IsString()
   whatsapp?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty()
   @IsBoolean()
-  showEmail?: boolean;
+  showEmail: boolean;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty()
   @IsBoolean()
-  showPhone?: boolean;
+  showPhone: boolean;
 }
 
 // DTO for quick listing creation
@@ -220,15 +206,60 @@ export class CreateListingDto extends QuickListingDto {
   location: LocationDto = new LocationDto();
 }
 
-export class UpdateListingDto extends CreateListingDto {
-  @ApiPropertyOptional({
-    enum: ListingStatus,
-    example: ListingStatus.PUBLISHED,
-    description: 'The status of the listing',
-  })
+export class UpdateListingDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MinLength(5)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MinLength(20)
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  price?: number;
+
+  @ApiPropertyOptional({ enum: PriceType })
+  @IsOptional()
+  @IsEnum(PriceType)
+  priceType?: PriceType;
+
+  @ApiPropertyOptional({ enum: ListingType })
+  @IsOptional()
+  @IsEnum(ListingType)
+  type?: ListingType;
+
+  @ApiPropertyOptional({ enum: ListingStatus })
   @IsOptional()
   @IsEnum(ListingStatus)
   status?: ListingStatus;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  categoryIds?: string[];
+
+  @ApiPropertyOptional({ type: () => LocationDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LocationDto)
+  location?: LocationDto;
+
+  @ApiPropertyOptional({ type: () => ContactDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ContactDto)
+  contact?: ContactDto;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  metadata?: Record<string, any>;
 }
 
 export class SearchListingDto {
@@ -340,119 +371,82 @@ export class SearchListingDto {
 }
 
 export class ListingResponseDto {
-  @ApiProperty({
-    example: '123e4567-e89b-12d3-a456-426614174000',
-    description: 'The unique identifier of the listing',
-  })
-  id: string = '';
+  @ApiProperty()
+  id: string;
 
-  @ApiProperty({
-    example: 'Beautiful house for sale',
-    description: 'The title of the listing',
-  })
-  title: string = '';
+  @ApiProperty()
+  title: string;
 
-  @ApiProperty({
-    example: 'beautiful-house-for-sale',
-    description: 'The slug of the listing',
-  })
-  slug: string = '';
+  @ApiProperty()
+  slug: string;
 
-  @ApiProperty({
-    example: 'This is a beautiful house in a great location...',
-    description: 'The description of the listing',
-  })
-  description: string = '';
+  @ApiProperty()
+  description: string;
 
-  @ApiProperty({
-    example: 100000,
-    description: 'The price of the listing',
-  })
-  price: number = 0;
+  @ApiProperty()
+  price: number;
 
-  @ApiProperty({
-    enum: PriceType,
-    example: PriceType.FIXED,
-    description: 'The type of price',
-  })
-  priceType: PriceType = PriceType.FIXED;
+  @ApiProperty({ enum: PriceType })
+  priceType: PriceType;
 
-  @ApiProperty({
-    enum: ListingStatus,
-    example: ListingStatus.PUBLISHED,
-    description: 'The status of the listing',
-  })
-  status: ListingStatus = ListingStatus.DRAFT;
+  @ApiProperty({ enum: ListingType })
+  type: ListingType;
 
-  @ApiPropertyOptional()
-  attributes?: Record<string, any>;
+  @ApiProperty({ enum: ListingStatus })
+  status: ListingStatus;
 
-  @ApiProperty({
-    type: [ImageDto],
-    description: 'The images of the listing',
-  })
-  images: ImageDto[] = [];
+  @ApiProperty({ type: () => LocationDto })
+  location: LocationDto;
 
-  @ApiProperty({
-    description: 'The location of the listing',
-  })
-  location: LocationDto = new LocationDto();
+  @ApiProperty({ type: () => ContactDto })
+  contact: ContactDto;
 
-  @ApiProperty({
-    example: 0,
-    description: 'The number of views',
-  })
-  views: number = 0;
-
-  @ApiProperty({
-    example: true,
-    description: 'Whether the listing is active',
-  })
-  isActive: boolean = true;
-
-  @ApiProperty({
-    description: 'The seller of the listing',
-  })
+  @ApiProperty()
   seller: {
     id: string;
     firstName: string;
     lastName: string;
     email: string;
-  } = {
-    id: '',
-    firstName: '',
-    lastName: '',
-    email: '',
   };
 
-  @ApiProperty({
-    example: '2024-01-26T12:00:00.000Z',
-    description: 'When the listing was created',
-  })
-  createdAt: Date = new Date();
+  @ApiProperty({ type: [Object] })
+  categories: {
+    id: string;
+    name: string;
+  }[];
 
-  @ApiProperty({
-    example: '2024-01-26T12:00:00.000Z',
-    description: 'When the listing was last updated',
-  })
-  updatedAt: Date = new Date();
-
-  @ApiPropertyOptional({
-    example: '2024-01-26T12:00:00.000Z',
-    description: 'When the listing was published',
-  })
-  publishedAt?: Date;
+  @ApiProperty({ type: [Object] })
+  images: {
+    id: string;
+    url: string;
+    thumbnail?: string;
+  }[];
 
   @ApiPropertyOptional()
   metadata?: Record<string, any>;
 
-  @ApiPropertyOptional()
-  distance?: number;
+  @ApiProperty()
+  views: number;
+
+  @ApiProperty()
+  favorites: number;
+
+  @ApiProperty()
+  isActive: boolean;
+
+  @ApiProperty()
+  isFeatured: boolean;
 
   @ApiPropertyOptional()
-  relevanceScore?: number;
+  publishedAt?: Date;
 
   @ApiPropertyOptional()
   expiresAt?: Date;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
 } 
 
