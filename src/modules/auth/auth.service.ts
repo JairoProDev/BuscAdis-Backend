@@ -1,15 +1,15 @@
-import { Injectable, UnauthorizedException, BadRequestException, Logger, NotFoundException } from '@nestjs/common'; // Add NotFoundException
+import { Injectable, UnauthorizedException, BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
-import { User, AuthProvider } from '../users/entities/user.entity'; // Import User
+import { User, AuthProvider } from '../users/entities/user.entity';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
 import { Twilio } from 'twilio';
 import { UserResponseDto } from '../users/dto/user.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 
-export class AuthResponseDto {  //  DTO independiente
+export class AuthResponseDto {
     user: UserResponseDto;
     token: string;
 }
@@ -47,7 +47,7 @@ export class AuthService {
         if (!user) {
             throw new UnauthorizedException('Invalid credentials');
         }
-        return this.generateToken(user); // Pasamos la entidad User
+        return this.generateToken(user);
     }
 
     async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
@@ -56,17 +56,18 @@ export class AuthService {
             throw new BadRequestException('El correo electrónico ya está registrado.');
         }
 
-        // usersService.create devuelve la entidad User
         const user = await this.usersService.create(registerDto);
+        if (!user) {
+            throw new BadRequestException('Error creating user');
+        }
 
         const updateUserDto: UpdateUserDto = {
             provider: AuthProvider.LOCAL,
             isVerified: false,
         };
-        // Actualizamos el usuario.  usersService.update espera el ID y un DTO, no la entidad
         await this.usersService.update(user.id, updateUserDto);
 
-        return this.generateToken(user); // Pasamos la entidad User
+        return this.generateToken(user);
     }
 
     async validateOAuthLogin(profile: any, provider: string): Promise<AuthResponseDto> {
@@ -86,7 +87,7 @@ export class AuthService {
                 const updateUserDto: UpdateUserDto = {
                     provider: AuthProvider[providerEnum],
                     oauthId: profile.id,
-                    isVerified: true, // Ya verificado
+                    isVerified: true,
                 };
                 await this.usersService.update(user.id, updateUserDto);
             } else {
@@ -95,61 +96,60 @@ export class AuthService {
                     firstName: profile.name.givenName,
                     lastName: profile.name.familyName,
                     password: Math.random().toString(36).slice(-8),
-                    phoneNumber: '',  // Añadido para evitar errores
+                    phoneNumber: '',
                 };
-                // usersService.create devuelve la entidad User
                 user = await this.usersService.create(createUserDto);
-                const updateUserDto: UpdateUserDto = {
-                  provider: AuthProvider[providerEnum],
-                  oauthId: profile.id,
-                  isVerified: true,
-                  phoneNumber: '',
+                if (!user) {
+                    throw new NotFoundException('User creation failed.');
                 }
+                const updateUserDto: UpdateUserDto = {
+                    provider: AuthProvider[providerEnum],
+                    oauthId: profile.id,
+                    isVerified: true,
+                    phoneNumber: '',
+                };
                 await this.usersService.update(user.id, updateUserDto);
             }
         }
 
         if (!user) {
-            throw new NotFoundException('User creation failed.'); // Mejor manejo de errores
+            throw new NotFoundException('User creation failed.');
         }
-        return this.generateToken(user); // Pasamos la entidad user
+        return this.generateToken(user);
     }
 
     async handleSocialAuth(profile: any, provider: AuthProvider): Promise<AuthResponseDto> {
-        // profile.emails puede ser undefined o un array vacío.  Maneja ambos casos.
         const email = Array.isArray(profile.emails) && profile.emails.length > 0
             ? profile.emails[0].value
-            : profile.email; // Usa profile.email como respaldo si no hay emails
+            : profile.email;
 
         let user = await this.usersService.findByEmail(email);
 
         if (!user) {
-            if (!email) { // Verifica que tenemos un email
+            if (!email) {
                 throw new BadRequestException('Email is required for social authentication.');
             }
             const createUserDto: RegisterDto = {
                 email: email,
                 firstName: profile.firstName || profile.displayName.split(' ')[0],
                 lastName: profile.lastName || profile.displayName.split(' ').slice(1).join(' '),
-                password: '', // Sin password
+                password: '',
                 phoneNumber: '',
             };
             user = await this.usersService.create(createUserDto);
             const updateUserDto: UpdateUserDto = {
-              provider: provider,
-              oauthId: profile.id,
-              isVerified: true,
-              phoneNumber: '',
-            }
+                provider: provider,
+                oauthId: profile.id,
+                isVerified: true,
+                phoneNumber: '',
+            };
             await this.usersService.update(user.id, updateUserDto);
-
         } else if (user.provider !== provider) {
             throw new BadRequestException(`User already exists with ${user.provider} authentication`);
         }
 
         return this.generateToken(user);
     }
-
 
     async sendPhoneVerification(phone: string) {
         if (!this.twilioClient) {
@@ -160,7 +160,7 @@ export class AuthService {
             await this.twilioClient.messages.create({
                 body: `Your BuscAdis verification code is: ${verificationCode}`,
                 to: phone,
-                from: this.configService.get('TWILIO_PHONE_NUMBER') || '', // Considera un mejor manejo de errores aquí
+                from: this.configService.get('TWILIO_PHONE_NUMBER') || '',
             });
         } catch (error) {
             this.logger.error(`Error sending SMS: ${(error as Error).message}`, (error as Error).stack);
@@ -169,33 +169,27 @@ export class AuthService {
         return { message: 'Verification code sent' };
     }
 
-
     async verifyPhone(phone: string, code: string): Promise<AuthResponseDto> {
-        // Primero intenta encontrar por número de teléfono
         let user = await this.usersService.findByPhone(phone);
 
         if (!user) {
-            // Si no se encuentra por teléfono, intenta por email
             user = await this.usersService.findByEmail(phone);
-             if (!user) {
+            if (!user) {
                 throw new NotFoundException('User not found');
-             }
+            }
         }
 
         const updateUserDto: UpdateUserDto = {
             isVerified: true,
-            //Si el usuario se encontró por email, asignamos phone al phoneNumber
-            ...(phone !== user.email && {phoneNumber: phone})
+            ...(phone !== user.email && { phoneNumber: phone })
         };
 
         await this.usersService.update(user.id, updateUserDto);
         return this.generateToken(user);
     }
 
-
-
     private generateToken(user: User): AuthResponseDto {
-        if (!user) {  //  importante para la seguridad
+        if (!user) {
             throw new BadRequestException('User cannot be null');
         }
         const payload = {
@@ -204,19 +198,19 @@ export class AuthService {
             role: user.role,
         };
 
-        const userResponse: UserResponseDto = { //  UserResponseDto
+        const userResponse: UserResponseDto = {
             id: user.id,
             firstName: user.firstName,
             lastName: user.lastName,
             email: user.email,
             role: user.role,
-            phoneNumber: user.phoneNumber,  //  phoneNumber
-            provider: user.provider,      //  provider
-            isActive: user.isActive,       //  isActive
-            createdAt: user.createdAt,   //  createdAt
-            updatedAt: user.updatedAt,     //  updatedAt
-            isVerified: user.isVerified,    //  isVerified
-            oauthId: user.oauthId,         //  oauthId
+            phoneNumber: user.phoneNumber,
+            provider: user.provider,
+            isActive: user.isActive,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+            isVerified: user.isVerified,
+            oauthId: user.oauthId,
         };
 
         return {
