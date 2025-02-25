@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsUUID, IsObject } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsUUID, IsObject, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger'; //  PartialType
 import { Transform } from 'class-transformer';
 
@@ -81,4 +81,39 @@ export class MoveCategoryDto {
   @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
   @IsUUID()
   newParentId: string;
+}
+
+export class CategoryResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty()
+  slug: string;
+
+  @ApiProperty()
+  description?: string;
+
+  @ApiProperty()
+  icon?: string;
+
+  @ApiProperty()
+  parentId?: string;
+
+  @ApiProperty()
+  isActive: boolean;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+
+  @ApiProperty({ type: [CategoryResponseDto] })
+  children?: CategoryResponseDto[];
+
+  @ApiProperty()
+  listingCount?: number;
 }
