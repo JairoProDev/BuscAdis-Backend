@@ -1,52 +1,57 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3 } from 'aws-sdk';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuid } from 'uuid';
 
 @Injectable()
 export class StorageService {
   private readonly s3: S3;
-  private readonly logger = new Logger(StorageService.name);
   private readonly bucketName: string;
+  private readonly logger = new Logger(StorageService.name);
 
   constructor(private readonly configService: ConfigService) {
+    const bucketName = this.configService.get<string>('AWS_S3_BUCKET');
+    if (!bucketName) {
+      throw new Error('AWS_S3_BUCKET environment variable is not set');
+    }
+    this.bucketName = bucketName;
+
     this.s3 = new S3({
       accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID'),
       secretAccessKey: this.configService.get<string>('AWS_SECRET_ACCESS_KEY'),
       region: this.configService.get<string>('AWS_REGION'),
     });
-    this.bucketName = this.configService.get<string>('AWS_S3_BUCKET');
   }
 
   async uploadFile(file: Express.Multer.File): Promise<string> {
     try {
-      const key = `${uuidv4()}-${file.originalname}`;
-      
+      const fileExtension = file.originalname.split('.').pop();
+      const fileName = `${uuid()}.${fileExtension}`;
+
       await this.s3.upload({
         Bucket: this.bucketName,
-        Key: key,
+        Key: fileName,
         Body: file.buffer,
         ContentType: file.mimetype,
-        ACL: 'public-read',
       }).promise();
 
-      return `https://${this.bucketName}.s3.amazonaws.com/${key}`;
+      return fileName;
     } catch (error) {
-      this.logger.error(`Failed to upload file: ${error.message}`, error.stack);
+      const err = error as Error;
+      this.logger.error(`Failed to upload file: ${err.message}`, err.stack);
       throw error;
     }
   }
 
-  async deleteFile(fileUrl: string): Promise<void> {
+  async deleteFile(fileName: string): Promise<void> {
     try {
-      const key = fileUrl.split('/').pop();
-      
       await this.s3.deleteObject({
         Bucket: this.bucketName,
-        Key: key,
+        Key: fileName,
       }).promise();
     } catch (error) {
-      this.logger.error(`Failed to delete file: ${error.message}`, error.stack);
+      const err = error as Error;
+      this.logger.error(`Failed to delete file: ${err.message}`, err.stack);
       throw error;
     }
   }
