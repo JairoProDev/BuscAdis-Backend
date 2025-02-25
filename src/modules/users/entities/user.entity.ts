@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Listing } from '../../listings/entities/listing.entity';
+import { Message } from '../../messages/entities/message.entity';
 
 export enum UserRole {
   USER = 'user',
@@ -72,6 +73,12 @@ export class User {
 
   @OneToMany(() => Listing, listing => listing.seller)
   listings: Listing[];
+
+  @OneToMany(() => Message, message => message.sender)
+  sentMessages: Message[];
+
+  @OneToMany(() => Message, message => message.receiver)
+  receivedMessages: Message[];
 
   @CreateDateColumn()
   createdAt: Date = new Date();

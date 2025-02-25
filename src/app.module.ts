@@ -34,13 +34,18 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     // Elasticsearch
     ElasticsearchModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        node: configService.get('ELASTICSEARCH_NODE', 'http://localhost:9200'),
-        auth: {
-          username: configService.get('ELASTICSEARCH_USERNAME', ''),
-          password: configService.get('ELASTICSEARCH_PASSWORD', ''),
-        },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const username = configService.get('ELASTICSEARCH_USERNAME');
+        const password = configService.get('ELASTICSEARCH_PASSWORD');
+        
+        return {
+          node: configService.get('ELASTICSEARCH_NODE', 'http://localhost:9200'),
+          auth: username && password ? {
+            username,
+            password,
+          } : undefined,
+        };
+      },
       inject: [ConfigService],
     }),
 

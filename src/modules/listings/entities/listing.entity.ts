@@ -9,9 +9,11 @@ import {
   JoinTable,
   Index,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Category } from '../../categories/entities/category.entity';
+import { Message } from '../../messages/entities/message.entity';
 
 export enum ListingType {
   JOB = 'job',
@@ -28,10 +30,12 @@ export enum ListingType {
 }
 
 export enum ListingStatus {
-  DRAFT = 'draft',
-  PUBLISHED = 'published',
-  SOLD = 'sold',
-  ARCHIVED = 'archived',
+  DRAFT = 'DRAFT',
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  EXPIRED = 'EXPIRED',
+  SOLD = 'SOLD',
+  DELETED = 'DELETED',
 }
 
 export enum PriceType {
@@ -167,6 +171,12 @@ export class Listing {
 
   @Column({ type: 'timestamp', nullable: true })
   soldAt?: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  expiresAt: Date;
+
+  @OneToMany(() => Message, message => message.listing)
+  messages: Message[];
 
   // Virtual fields
   @Column({ select: false, insert: false, update: false, nullable: true })
