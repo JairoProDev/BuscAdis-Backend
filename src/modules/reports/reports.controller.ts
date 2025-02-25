@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  ParseUUIDPipe, // Importa ParseUUIDPipe
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,6 +26,7 @@ import {
   UpdateReportDto,
   ReportResponseDto,
 } from './dto/report.dto';
+import { AuthenticatedRequest } from 'src/common/types/request.type'; // Importa AuthenticatedRequest
 
 @ApiTags('reports')
 @Controller('reports')
@@ -42,7 +44,7 @@ export class ReportsController {
   })
   async create(
     @Body() createReportDto: CreateReportDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest, // Usa AuthenticatedRequest
   ): Promise<ReportResponseDto> {
     const report = await this.reportsService.create(createReportDto, req.user);
     return this.reportsService['mapToResponseDto'](report);
@@ -56,7 +58,7 @@ export class ReportsController {
     description: 'Returns an array of reports',
     type: [ReportResponseDto],
   })
-  async findAll(@Request() req): Promise<ReportResponseDto[]> {
+  async findAll(@Request() req: AuthenticatedRequest): Promise<ReportResponseDto[]> { // Usa AuthenticatedRequest
     const reports = await this.reportsService.findAll(
       req.user,
       req.user.roles?.includes('admin'),
@@ -74,8 +76,8 @@ export class ReportsController {
     type: ReportResponseDto,
   })
   async findOne(
-    @Param('id') id: string,
-    @Request() req,
+    @Param('id', ParseUUIDPipe) id: string, // Usa ParseUUIDPipe
+    @Request() req: AuthenticatedRequest, // Usa AuthenticatedRequest
   ): Promise<ReportResponseDto> {
     const report = await this.reportsService.findOne(
       id,
@@ -96,9 +98,9 @@ export class ReportsController {
     type: ReportResponseDto,
   })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string, // Usa ParseUUIDPipe
     @Body() updateReportDto: UpdateReportDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest, // Usa AuthenticatedRequest
   ): Promise<ReportResponseDto> {
     const report = await this.reportsService.update(
       id,
@@ -117,11 +119,15 @@ export class ReportsController {
     status: 200,
     description: 'The report has been successfully deleted.',
   })
-  async remove(@Param('id') id: string, @Request() req): Promise<void> {
+  async remove(
+      @Param('id', ParseUUIDPipe) id: string, // Usa ParseUUIDPipe
+      @Request() req: AuthenticatedRequest, // Usa AuthenticatedRequest
+    ): Promise<void>
+    {
     return this.reportsService.remove(
       id,
       req.user,
       req.user.roles?.includes('admin'),
     );
   }
-} 
+}
