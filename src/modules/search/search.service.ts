@@ -1,12 +1,88 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { SearchDto, SearchResponseDto } from './dto/search.dto';
+import { SearchResponse } from '@elastic/elasticsearch/lib/api/types';
 
 @Injectable()
 export class SearchService {
+  private readonly logger = new Logger(SearchService.name);
   private readonly listingsIndex = 'listings';
 
   constructor(private readonly elasticsearchService: ElasticsearchService) {}
+
+  async search<T>(index: string, query: any): Promise<T[]> {
+    try {
+      const response = await this.elasticsearchService.search<SearchResponse<T>>({
+        index,
+        ...query,
+      });
+
+      return response.hits.hits.map(hit => hit._source as T);
+    } catch (error) {
+      this.logger.error(`Error searching in ${index}:`, (error as Error).message);
+      throw error;
+    }
+  }
+
+  async createIndex(index: string, mappings: any): Promise<void> {
+    try {
+      const indexExists = await this.elasticsearchService.indices.exists({
+        index,
+      });
+
+      if (!indexExists) {
+        await this.elasticsearchService.indices.create({
+          index,
+          body: {
+            mappings,
+          },
+        });
+        this.logger.log(`Index ${index} created successfully`);
+      } else {
+        this.logger.log(`Index ${index} already exists`);
+      }
+    } catch (error) {
+      this.logger.error(`Error creating index ${index}:`, (error as Error).message);
+      throw error;
+    }
+  }
+
+  async deleteIndex(index: string): Promise<void> {
+    try {
+      await this.elasticsearchService.indices.delete({
+        index,
+      });
+      this.logger.log(`Index ${index} deleted successfully`);
+    } catch (error) {
+      this.logger.error(`Error deleting index ${index}:`, (error as Error).message);
+      throw error;
+    }
+  }
+
+  async indexDocument<T>(index: string, id: string, document: T): Promise<void> {
+    try {
+      await this.elasticsearchService.index({
+        index,
+        id,
+        body: document,
+      });
+    } catch (error) {
+      this.logger.error(`Error indexing document in ${index}:`, (error as Error).message);
+      throw error;
+    }
+  }
+
+  async deleteDocument(index: string, id: string): Promise<void> {
+    try {
+      await this.elasticsearchService.delete({
+        index,
+        id,
+      });
+    } catch (error) {
+      this.logger.error(`Error deleting document from ${index}:`, (error as Error).message);
+      throw error;
+    }
+  }
 
   async search(searchDto: SearchDto): Promise<SearchResponseDto> {
     const {
@@ -196,57 +272,5 @@ export class SearchService {
       index: this.listingsIndex,
       id,
     });
-  }
-
-  async createIndex(): Promise<void> {
-    const indexExists = await this.elasticsearchService.indices.exists({
-      index: this.listingsIndex,
-    });
-
-    if (!indexExists.body) {
-      await this.elasticsearchService.indices.create({
-        index: this.listingsIndex,
-        body: {
-          mappings: {
-            properties: {
-              title: { type: 'text', analyzer: 'standard' },
-              description: { type: 'text', analyzer: 'standard' },
-              price: { type: 'float' },
-              condition: { type: 'keyword' },
-              location: { type: 'geo_point' },
-              categories: {
-                type: 'nested',
-                properties: {
-                  id: { type: 'keyword' },
-                  name: { type: 'text', fields: { keyword: { type: 'keyword' } } },
-                  slug: { type: 'keyword' },
-                },
-              },
-              seller: {
-                properties: {
-                  id: { type: 'keyword' },
-                  firstName: { type: 'text' },
-                  lastName: { type: 'text' },
-                  rating: { type: 'float' },
-                },
-              },
-              isActive: { type: 'boolean' },
-              createdAt: { type: 'date' },
-              updatedAt: { type: 'date' },
-            },
-          },
-          settings: {
-            analysis: {
-              analyzer: {
-                standard: {
-                  type: 'standard',
-                  stopwords: '_english_',
-                },
-              },
-            },
-          },
-        },
-      });
-    }
   }
 } 

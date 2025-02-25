@@ -1,11 +1,11 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, TreeRepository } from 'typeorm';
+import { Repository, TreeRepository, FindOptionsWhere, ILike } from 'typeorm'; // Importa ILike
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import slugify from 'slugify';
 import { Category } from './entities/category.entity';
 import { CreateCategoryDto, UpdateCategoryDto, CategoryTreeDto } from './dto/category.dto';
-import { SearchResponse, SearchHit } from '@elastic/elasticsearch/lib/api/types';
+import { SearchResponse, SearchHit } from '@elastic/elasticsearch/lib/api/types'; // Importa SearchHit
 
 @Injectable()
 export class CategoriesService {
@@ -27,7 +27,7 @@ export class CategoriesService {
         index: this.indexName,
       });
 
-      if (!checkIndex) {
+      if (!checkIndex.valueOf) {
         await this.elasticsearchService.indices.create({
           index: this.indexName,
           body: {
@@ -45,11 +45,13 @@ export class CategoriesService {
             },
           },
         });
+        console.log('Category index created'); // o usa un Logger
       }
     } catch (error) {
-      console.error("Error creating index:", error);
+      console.error('Error creating category index:', error); // Mejor con Logger
     }
   }
+
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
     const slug = createCategoryDto.slug ||
@@ -85,26 +87,27 @@ export class CategoriesService {
     });
   }
 
-  async findOne(id: string): Promise<Category> {
-    const category = await this.categoryRepository.findOne({
-      where: { id },
-      relations: ['parent'],
-    });
+    async findOne(id: string): Promise<Category> {
+        const category = await this.categoryRepository.findOne({
+            where: { id },
+            relations: ['parent'], // Carga la relación con el padre
+        });
 
-    if (!category) {
-      throw new NotFoundException('Category not found');
+        if (!category) {
+            throw new NotFoundException(`Category with ID ${id} not found`);
+        }
+
+        return category;
     }
 
-    return category;
-  }
 
   async update(id: string, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
     const category = await this.findOne(id);
 
     if (updateCategoryDto.name && !updateCategoryDto.slug) {
-      updateCategoryDto.slug = slugify(updateCategoryDto.name, { lower: true, strict: true });
-    }
-
+        updateCategoryDto.slug = slugify(updateCategoryDto.name, { lower: true, strict: true });
+      }
+    //Comprobación del slug
     if (updateCategoryDto.slug && updateCategoryDto.slug !== category.slug) {
       const existingCategory = await this.categoryRepository.findOne({
         where: { slug: updateCategoryDto.slug },
@@ -116,12 +119,12 @@ export class CategoriesService {
     }
 
     if (updateCategoryDto.parentId) {
-      const parent = await this.findOne(updateCategoryDto.parentId);
-      if (parent.id === category.id) {
-        throw new ConflictException('Category cannot be its own parent');
-      }
-      category.parent = parent;
-    }
+        const parent = await this.findOne(updateCategoryDto.parentId);
+         if (parent.id === category.id) {
+           throw new ConflictException('Category cannot be its own parent');
+        }
+        category.parent = parent;
+     }
 
     Object.assign(category, updateCategoryDto);
     const updatedCategory = await this.categoryRepository.save(category);
@@ -131,12 +134,18 @@ export class CategoriesService {
   }
 
   async remove(id: string): Promise<void> {
-    const category = await this.findOne(id);
+    const category = await this.findOne(id); // Esto ya lanza si no existe
     await this.categoryRepository.remove(category);
-    await this.elasticsearchService.delete({
-      index: this.indexName,
-      id,
-    });
+        //Eliminar de elasticsearch
+        try {
+            await this.elasticsearchService.delete({
+                index: this.indexName,
+                id: id,
+            });
+        } catch (error) {
+            console.error(`Error deleting category from Elasticsearch: ${error}`);
+            // Considera si quieres lanzar el error o simplemente loguearlo.
+        }
   }
 
   async getTree(): Promise<CategoryTreeDto[]> {
@@ -154,29 +163,45 @@ export class CategoriesService {
 
     category.parent = newParent;
     const updatedCategory = await this.categoryRepository.save(category);
-    await this.indexCategory(updatedCategory);
+    await this.indexCategory(updatedCategory); // Reindexa en Elasticsearch
 
     return updatedCategory;
   }
 
-  async search(query: string): Promise<Category[]> {
-    const response = await this.elasticsearchService.search<SearchResponse<Category>>({ // Correcto
-      index: this.indexName,
-      body: {
-        query: {
-          multi_match: {
-            query,
-            fields: ['name', 'description'],
-            fuzziness: 'AUTO',
-          },
-        },
-      },
-    });
 
-    // CORRECCIÓN: El tipado del map
-    const categories = response.hits.hits.map((hit: SearchHit<Category>) => hit._source!);
-    return categories;
-  }
+    async search(query: string): Promise<Category[]> {
+        try {
+            const { hits } = await this.elasticsearchService.search<SearchResponse<Category>>({ //Usa el SearchResponse
+                index: this.indexName,
+                body: {
+                    query: {
+                        multi_match: {
+                            query,
+                            fields: ['name', 'description'],
+                            fuzziness: 'AUTO',
+                        },
+                    },
+                },
+            });
+
+            if (hits.total === 0) {
+                return []; //Si no hay resultados.
+            }
+
+            const categories = hits.hits.map((hit: SearchHit<Category>) => hit._source!); //  SearchHit<Category>
+            return categories;
+
+        } catch (error) {
+            console.error("Error searching in elasticsearch, searching in database...", error)
+            // Fallback a TypeORM si Elasticsearch falla
+            return this.categoryRepository.find({
+                where: [
+                    { name: ILike(`%${query}%`) },
+                    { description: ILike(`%${query}%`) },
+                ],
+            });
+        }
+    }
 
 
   private async isDescendant(possibleDescendant: Category, ancestor: Category): Promise<boolean> {
