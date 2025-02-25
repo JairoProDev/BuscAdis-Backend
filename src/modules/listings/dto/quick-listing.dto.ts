@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, ValidateNested, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, ValidateNested, IsArray, IsNumber, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ListingStatus, ListingType, PriceType } from '../entities/listing.entity';
 
 export class LocationDto {
   @ApiProperty()
@@ -61,35 +62,64 @@ export class QuickListingDto {
   description: string;
 
   @ApiProperty()
-  @ValidateNested()
-  @Type(() => CategoryDto)
+  @IsNumber()
   @IsOptional()
-  category?: CategoryDto;
+  price?: number;
 
   @ApiProperty()
-  @IsString()
+  @IsEnum(PriceType)
   @IsOptional()
-  type?: string;
+  priceType?: PriceType;
 
   @ApiProperty()
-  @ValidateNested()
-  @Type(() => ContactDto)
-  @IsNotEmpty()
-  contact: ContactDto;
-
-  @ApiProperty({ type: 'array', items: { type: 'string', format: 'binary' } })
+  @IsEnum(ListingType)
   @IsOptional()
-  media?: any[];
+  type?: ListingType;
+
+  @ApiProperty()
+  @IsEnum(ListingStatus)
+  @IsOptional()
+  status?: ListingStatus;
+
+  @ApiProperty()
+  @IsArray()
+  @IsOptional()
+  categoryIds?: string[];
+
+  @ApiProperty()
+  @IsArray()
+  @IsOptional()
+  images?: Express.Multer.File[];
 
   @ApiProperty()
   @ValidateNested()
   @Type(() => LocationDto)
   @IsOptional()
-  location?: LocationDto;
+  location?: {
+    address: string;
+    city: string;
+    state: string;
+    country: string;
+    coordinates?: {
+      lat: number;
+      lon: number;
+    };
+  };
 
   @ApiProperty()
   @ValidateNested()
-  @Type(() => PriceDto)
+  @Type(() => ContactDto)
   @IsOptional()
-  price?: PriceDto;
+  contact?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    whatsapp?: string;
+    showEmail?: boolean;
+    showPhone?: boolean;
+  };
+
+  @ApiProperty()
+  @IsOptional()
+  metadata?: Record<string, any>;
 } 
