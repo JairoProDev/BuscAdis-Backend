@@ -5,6 +5,7 @@ import { ElasticsearchService } from '@nestjs/elasticsearch';
 import slugify from 'slugify';
 import { Category } from './entities/category.entity';
 import { CreateCategoryDto, UpdateCategoryDto, CategoryTreeDto } from './dto/category.dto';
+import { SearchResponse, SearchHit } from '@elastic/elasticsearch/lib/api/types';
 
 @Injectable()
 export class CategoriesService {
@@ -21,33 +22,37 @@ export class CategoriesService {
   }
 
   private async createIndex() {
-    const checkIndex = await this.elasticsearchService.indices.exists({
-      index: this.indexName,
-    });
-
-    if (!checkIndex) {
-      await this.elasticsearchService.indices.create({
+    try {
+      const checkIndex = await this.elasticsearchService.indices.exists({
         index: this.indexName,
-        body: {
-          mappings: {
-            properties: {
-              id: { type: 'keyword' },
-              name: { type: 'text' },
-              slug: { type: 'keyword' },
-              description: { type: 'text' },
-              isActive: { type: 'boolean' },
-              parentId: { type: 'keyword' },
-              path: { type: 'keyword' },
-              createdAt: { type: 'date' },
+      });
+
+      if (!checkIndex) {
+        await this.elasticsearchService.indices.create({
+          index: this.indexName,
+          body: {
+            mappings: {
+              properties: {
+                id: { type: 'keyword' },
+                name: { type: 'text' },
+                slug: { type: 'keyword' },
+                description: { type: 'text' },
+                isActive: { type: 'boolean' },
+                parentId: { type: 'keyword' },
+                path: { type: 'keyword' },
+                createdAt: { type: 'date' },
+              },
             },
           },
-        },
-      });
+        });
+      }
+    } catch (error) {
+      console.error("Error creating index:", error);
     }
   }
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
-    const slug = createCategoryDto.slug || 
+    const slug = createCategoryDto.slug ||
       slugify(createCategoryDto.name, { lower: true, strict: true });
 
     const existingCategory = await this.categoryRepository.findOne({
@@ -154,8 +159,8 @@ export class CategoriesService {
     return updatedCategory;
   }
 
-  async search(query: string) {
-    const { body } = await this.elasticsearchService.search({
+  async search(query: string): Promise<Category[]> {
+    const response = await this.elasticsearchService.search<SearchResponse<Category>>({ // Correcto
       index: this.indexName,
       body: {
         query: {
@@ -168,11 +173,11 @@ export class CategoriesService {
       },
     });
 
-    return body.hits.hits.map((hit: any) => ({
-      ...hit._source,
-      score: hit._score,
-    }));
+    // CORRECCIÓN: El tipado del map
+    const categories = response.hits.hits.map((hit: SearchHit<Category>) => hit._source!);
+    return categories;
   }
+
 
   private async isDescendant(possibleDescendant: Category, ancestor: Category): Promise<boolean> {
     const descendants = await this.treeRepository.findDescendants(ancestor);
@@ -212,4 +217,4 @@ export class CategoriesService {
       children: tree.children ? this.mapTreesToDto(tree.children) : undefined,
     }));
   }
-} 
+}
