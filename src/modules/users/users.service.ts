@@ -122,7 +122,7 @@ export class UsersService {
 
     async search(query: string): Promise<User[]> {
         try {
-            const results = await this.elasticsearchService.search<SearchResponse<User>>({ // Tipado Correcto
+            const response = await this.elasticsearchService.search<SearchResponse<User>>({ // TIPADO CORRECTO
                 index: this.indexName,
                 body: {
                     query: {
@@ -135,7 +135,7 @@ export class UsersService {
                 },
             });
 
-            const users = results.hits.hits.map((hit: SearchHit<User>) => hit._source!); //  Tipado Correcto
+            const users = response.hits.hits.map((hit: SearchHit<User>) => hit._source!);
             if (users.length === 0) {
                 return [];
             }
