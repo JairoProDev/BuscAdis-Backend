@@ -24,6 +24,7 @@ import {
   MessageResponseDto,
   ConversationDto,
 } from './dto/message.dto';
+import { AuthenticatedRequest } from '../../common/types/request.type';
 
 @ApiTags('messages')
 @Controller('messages')
@@ -41,7 +42,7 @@ export class MessagesController {
   })
   async create(
     @Body() createMessageDto: CreateMessageDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<MessageResponseDto> {
     const message = await this.messagesService.create(createMessageDto, req.user);
     return this.messagesService.mapToResponseDto(message);
@@ -54,11 +55,11 @@ export class MessagesController {
     description: 'Returns an array of messages',
     type: [MessageResponseDto],
   })
-  async findAll(@Request() req): Promise<MessageResponseDto[]> {
+  async findAll(@Request() req: AuthenticatedRequest): Promise<MessageResponseDto[]> {
     const messages = await this.messagesService.findAll(req.user);
-    return messages.map(message =>
-      this.messagesService.mapToResponseDto(message),
-    );
+    return Promise.all(messages.map(message => 
+      this.messagesService.mapToResponseDto(message)
+    ));
   }
 
   @Get('conversation/:userId')
@@ -92,7 +93,7 @@ export class MessagesController {
   })
   async findOne(
     @Param('id') id: string,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<MessageResponseDto> {
     const message = await this.messagesService.findOne(id, req.user);
     return this.messagesService.mapToResponseDto(message);
@@ -126,7 +127,10 @@ export class MessagesController {
     status: 200,
     description: 'The message has been successfully deleted.',
   })
-  async remove(@Param('id') id: string, @Request() req): Promise<void> {
-    return this.messagesService.remove(id, req.user);
+  async remove(
+    @Param('id') id: string, 
+    @Request() req: AuthenticatedRequest
+  ): Promise<void> {
+    await this.messagesService.remove(id, req.user);
   }
 } 
