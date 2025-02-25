@@ -103,9 +103,9 @@ export class User {
   }
 
   async validatePassword(password: string): Promise<boolean> {
-    if (this.provider !== AuthProvider.LOCAL) {
-      return false; //  Si no es autenticación local, no hay contraseña que validar
+    if (this.provider !== AuthProvider.LOCAL || !this.password) {
+      return false;
     }
-    return bcrypt.compare(password, this.password);
+    return await bcrypt.compare(password, this.password);
   }
 }
