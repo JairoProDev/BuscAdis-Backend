@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Request,
+  ParseUUIDPipe, // Importante: Añade ParseUUIDPipe
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,6 +27,7 @@ import {
   SearchListingDto,
   ListingResponseDto,
 } from './dto/listing.dto';
+import { AuthenticatedRequest } from 'src/common/types/request.type'; // Importa AuthenticatedRequest
 
 @ApiTags('listings')
 @Controller('listings')
@@ -43,7 +45,7 @@ export class ListingsController {
   })
   async createQuick(
     @Body() quickListingDto: QuickListingDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest, // Usa AuthenticatedRequest
   ): Promise<ListingResponseDto> {
     const listing = await this.listingsService.createQuick(quickListingDto, req.user);
     return this.listingsService['mapToResponseDto'](listing);
@@ -54,7 +56,10 @@ export class ListingsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new listing' })
   @ApiResponse({ status: 201, description: 'The listing has been created', type: ListingResponseDto })
-  async create(@Body() createListingDto: CreateListingDto, @Request() req) {
+  async create(
+      @Body() createListingDto: CreateListingDto,
+      @Request() req: AuthenticatedRequest, // Usa AuthenticatedRequest
+    ): Promise<ListingResponseDto> { // Añade el tipo de retorno
     const listing = await this.listingsService.create(createListingDto, req.user);
     return this.listingsService.mapToResponseDto(listing);
   }
@@ -62,7 +67,7 @@ export class ListingsController {
   @Get()
   @ApiOperation({ summary: 'Get all published listings' })
   @ApiResponse({ status: 200, description: 'Return all published listings', type: [ListingResponseDto] })
-  async findAll() {
+  async findAll(): Promise<ListingResponseDto[]> { // Añade el tipo de retorno
     const listings = await this.listingsService.findAll();
     return Promise.all(listings.map(listing => this.listingsService.mapToResponseDto(listing)));
   }
@@ -86,13 +91,13 @@ export class ListingsController {
     description: 'Returns an array of user listings',
     type: [ListingResponseDto],
   })
-  async getMyListings(@Request() req): Promise<ListingResponseDto[]> {
+  async getMyListings(@Request() req: AuthenticatedRequest): Promise<ListingResponseDto[]> { // Usa AuthenticatedRequest
     const searchDto: SearchListingDto = {
       ownerId: req.user.id,
       limit: 100,
     };
     const { items } = await this.listingsService.search(searchDto);
-    return items;
+      return items.map((item) => this.listingsService.mapToResponseDto(item)); //Asegura el mapeo
   }
 
   @Get(':id')
@@ -100,7 +105,7 @@ export class ListingsController {
   @ApiParam({ name: 'id', description: 'Listing ID' })
   @ApiResponse({ status: 200, description: 'Return the listing', type: ListingResponseDto })
   @ApiResponse({ status: 404, description: 'Listing not found' })
-  async findOne(@Param('id') id: string) {
+    async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ListingResponseDto> { // Añade el tipo, usa ParseUUIDPipe
     const listing = await this.listingsService.findOne(id);
     return this.listingsService.mapToResponseDto(listing);
   }
@@ -114,10 +119,10 @@ export class ListingsController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Listing not found' })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string, // Usa ParseUUIDPipe
     @Body() updateListingDto: UpdateListingDto,
-    @Request() req,
-  ) {
+    @Request() req: AuthenticatedRequest, // Usa AuthenticatedRequest
+  ): Promise<ListingResponseDto> {  // Añade tipo de retorno
     const listing = await this.listingsService.update(id, updateListingDto, req.user);
     return this.listingsService.mapToResponseDto(listing);
   }
@@ -130,8 +135,7 @@ export class ListingsController {
   @ApiResponse({ status: 200, description: 'The listing has been deleted' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Listing not found' })
-  async remove(@Param('id') id: string, @Request() req) {
+    async remove(@Param('id', ParseUUIDPipe) id: string, @Request() req: AuthenticatedRequest): Promise<void> { // Usa ParseUUIDPipe y AuthenticatedRequest
     await this.listingsService.remove(id, req.user);
   }
-} 
-
+}
