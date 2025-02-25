@@ -82,17 +82,25 @@ export class UsersService {
 
     // Find by email
     async findByEmail(email: string): Promise<User | undefined> {
-        return this.usersRepository.findOne({ where: { email } });
+        const user = await this.usersRepository.findOne({ where: { email } });
+        return user || undefined;
       }
 
         // Find by phone number
     async findByPhone(phoneNumber: string): Promise<User | undefined> {
-      return this.usersRepository.findOne({ where: { phoneNumber: phoneNumber } }); //Corrección
+      const user = await this.usersRepository.findOne({ where: { phoneNumber } });
+      return user || undefined;
     }
 
     // Find by OAuth ID and provider
     async findByOAuthId(oauthId: string, provider: string): Promise<User | undefined> {
-      return this.usersRepository.findOne({ where: { oauthId: oauthId, provider: provider as any} }); //Aserción temporal
+      const user = await this.usersRepository.findOne({ 
+        where: { 
+          oauthId, 
+          provider: provider.toUpperCase() as AuthProvider 
+        } 
+      });
+      return user || undefined;
     }
 
 
