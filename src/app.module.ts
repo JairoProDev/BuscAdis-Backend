@@ -7,7 +7,6 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { SearchModule } from './modules/search/search.module';
 import { CategoriesModule } from './modules/categories/categories.module';
-import { ProductsModule } from './modules/products/products.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { MessagesModule } from './modules/messages/messages.module';
 import { ListingsModule } from './modules/listings/listings.module';
@@ -54,7 +53,6 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     UsersModule,
     SearchModule,
     CategoriesModule,
-    ProductsModule,
     FavoritesModule,
     MessagesModule,
     ListingsModule,

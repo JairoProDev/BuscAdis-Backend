@@ -1,198 +1,184 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { ElasticsearchService } from '@nestjs/elasticsearch';
+import { Repository, FindOptionsWhere, ILike } from 'typeorm';
 import { User } from './entities/user.entity';
-import { CreateUserDto, UpdateUserDto, SearchUsersDto } from './dto/user.dto';
+import { CreateUserDto, UpdateUserDto } from './dto/user.dto'; //  CreateUserDto
 import * as bcrypt from 'bcrypt';
+import { ElasticsearchService } from '@nestjs/elasticsearch';
+import { SearchResponse, SearchHit } from '@elastic/elasticsearch/lib/api/types'; // Importa SearchHit
 
 @Injectable()
 export class UsersService {
   private readonly indexName = 'users';
+  private readonly logger = new Logger(UsersService.name); // Instancia de Logger
 
   constructor(
     @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private usersRepository: Repository<User>,
     private readonly elasticsearchService: ElasticsearchService,
   ) {
     this.createIndex();
   }
 
-  private async createIndex() {
-    const checkIndex = await this.elasticsearchService.indices.exists({
-      index: this.indexName,
-    });
 
-    if (!checkIndex) {
-      await this.elasticsearchService.indices.create({
+  async createIndex() {
+    try {
+      const checkIndex = await this.elasticsearchService.indices.exists({
         index: this.indexName,
-        body: {
-          mappings: {
-            properties: {
-              id: { type: 'keyword' },
-              firstName: { type: 'text' },
-              lastName: { type: 'text' },
-              email: { type: 'keyword' },
-              role: { type: 'keyword' },
-              isActive: { type: 'boolean' },
-              createdAt: { type: 'date' },
+      });
+
+      if (!checkIndex.value) { //  .value
+        await this.elasticsearchService.indices.create({
+          index: this.indexName,
+          body: {
+            mappings: {
+              properties: {
+                id: { type: 'keyword' },
+                firstName: { type: 'text' },
+                lastName: { type: 'text' },
+                email: { type: 'keyword' },
+                role: { type: 'keyword' },
+                isVerified: { type: 'boolean' },
+                phoneNumber: { type: 'keyword' }, // Considera usar 'text' si necesitas búsquedas parciales
+                createdAt: { type: 'date' },
+                updatedAt: { type: 'date' },
+                provider: { type: 'keyword' }, // Añade provider
+                oauthId: { type: 'keyword' },  // Añade oauthId
+              },
             },
           },
-        },
-      });
+        });
+        this.logger.log('User index created'); // Usa el logger
+      } else {
+        this.logger.log('User index already exists'); // Usa el logger
+      }
+    } catch (error) {
+      this.logger.error('Error creating user index:', (error as Error).message, (error as Error).stack); // Usa el logger
     }
   }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const existingUser = await this.userRepository.findOne({
-      where: { email: createUserDto.email },
-    });
 
-    if (existingUser) {
-      throw new ConflictException('Email already exists');
+    const user = this.usersRepository.create(createUserDto);
+    // Hash password.  Do this *before* saving.
+    if (createUserDto.password) { // Check if password exists
+      user.password = await bcrypt.hash(createUserDto.password, 10);
     }
 
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-
-    const user = this.userRepository.create({
-      ...createUserDto,
-      password: hashedPassword,
-    });
-
-    const savedUser = await this.userRepository.save(user);
-
-    // Index user in Elasticsearch
-    await this.elasticsearchService.index({
-      index: this.indexName,
-      id: savedUser.id,
-      body: this.mapUserToElastic(savedUser),
-    });
-
-    return savedUser;
+    return this.usersRepository.save(user); //  save
   }
 
   async findAll(): Promise<User[]> {
-    return this.userRepository.find();
+    return this.usersRepository.find();
   }
 
   async findOne(id: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id } });
+    const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(`User with ID ${id} not found`);
     }
     return user;
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this.userRepository.findOne({ where: { email } });
+    // Find by email
+    async findByEmail(email: string): Promise<User | undefined> {
+      return this.usersRepository.findOne({ where: { email } });
+    }
+
+      // Find by phone number
+  async findByPhone(phoneNumber: string): Promise<User | undefined> {
+    //Corrección de la propiedad
+    return this.usersRepository.findOne({ where: { phoneNumber: phoneNumber } });
   }
 
-  async findByPhone(phone: string): Promise<User | null> {
-    return this.userRepository.findOne({ where: { phone } });
-  }
+    // Find by OAuth ID and provider
+    async findByOAuthId(oauthId: string, provider: string): Promise<User | undefined> {
+        //Corrección de la propiedad
+      return this.usersRepository.findOne({ where: { oauthId: oauthId, provider: provider as any } }); //Aserción temporal
+    }
+
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.findOne(id);
-    Object.assign(user, updateUserDto);
-    const updatedUser = await this.userRepository.save(user);
-
-    // Update Elasticsearch
-    await this.elasticsearchService.update({
-      index: this.indexName,
-      id: updatedUser.id,
-      body: {
-        doc: this.mapUserToElastic(updatedUser),
-      },
-    });
-
-    return updatedUser;
+    const user = await this.findOne(id); // Checks if user exists
+    Object.assign(user, updateUserDto); // Updates the user object
+     // Hash password.  Do this *before* saving.
+     if (updateUserDto.password) { // Check if password exists
+      user.password = await bcrypt.hash(updateUserDto.password, 10);
+    }
+    return this.usersRepository.save(user);
   }
 
   async remove(id: string): Promise<void> {
-    const user = await this.findOne(id);
-    await this.userRepository.remove(user);
+    const user = await this.findOne(id); // Checks if user exists
+    await this.usersRepository.remove(user); // Remove user
 
-    // Remove from Elasticsearch
-    await this.elasticsearchService.delete({
-      index: this.indexName,
-      id: id,
-    });
+       // Eliminar de Elasticsearch
+       try {
+        await this.elasticsearchService.delete({
+            index: this.indexName,
+            id: id,
+        });
+    } catch (error) {
+      this.logger.error(`Error deleting user from Elasticsearch: ${(error as Error).message}`, (error as Error).stack);
+        // Considera si quieres lanzar el error o simplemente loguearlo.
+    }
   }
 
-  async search(searchDto: SearchUsersDto) {
-    const { query, role, isActive, page = 1, limit = 10 } = searchDto;
-
-    const must: any[] = [];
-    if (query) {
-      must.push({
-        multi_match: {
-          query,
-          fields: ['firstName', 'lastName', 'email'],
-          fuzziness: 'AUTO',
+  async search(query: string): Promise<User[]> {  //  string
+    try {
+      const results = await this.elasticsearchService.search<SearchResponse<User>>({
+        index: this.indexName,
+        body: {
+          query: {
+            multi_match: {
+              query,
+              fields: ['firstName', 'lastName', 'email'], // Include email
+              fuzziness: 'AUTO',
+            },
+          },
         },
       });
+
+      const users = results.body.hits.hits.map((hit: SearchHit<User>) => hit._source!); //  SearchHit<User>
+        if(users.length === 0){
+          return [];
+        }
+      return users;
+    } catch (error) {
+      this.logger.error('Error searching users:', (error as Error).message, (error as Error).stack);
+      return this.usersRepository.find({
+        where: [
+          { firstName: ILike(`%${query}%`) },
+          { lastName: ILike(`%${query}%`) },
+          { email: ILike(`%${query}%`) },
+        ],
+      });
     }
-
-    if (role) {
-      must.push({ term: { role } });
-    }
-
-    if (typeof isActive === 'boolean') {
-      must.push({ term: { isActive } });
-    }
-
-    const { body } = await this.elasticsearchService.search({
-      index: this.indexName,
-      body: {
-        from: (page - 1) * limit,
-        size: limit,
-        query: {
-          bool: { must },
-        },
-        sort: [{ createdAt: { order: 'desc' } }],
-      },
-    });
-
-    const hits = body.hits.hits;
-    const total = body.hits.total.value;
-
-    return {
-      items: hits.map((item: any) => ({
-        ...item._source,
-        score: item._score,
-      })),
-      total,
-      page,
-      limit,
-      pages: Math.ceil(total / limit),
-    };
   }
 
-  async validateUser(email: string, password: string): Promise<User | null> {
-    const user = await this.findByEmail(email);
+    // Método para indexar un usuario en Elasticsearch
+    async indexUser(user: User): Promise<void> {
+        try {
+            await this.elasticsearchService.index({
+                index: this.indexName,
+                id: user.id,
+                body: {
+                    id: user.id,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    email: user.email,
+                    role: user.role,
+                    isVerified: user.isVerified,
+                    phoneNumber: user.phoneNumber,
+                    createdAt: user.createdAt,
+                    updatedAt: user.updatedAt,
+                    provider: user.provider,
+                    oauthId: user.oauthId
+                },
+            });
 
-    if (user && await bcrypt.compare(password, user.password)) {
-      return user;
+        } catch (error) {
+            this.logger.error(`Error indexing user in Elasticsearch: ${ (error as Error).message }`, (error as Error).stack)
+        }
     }
-
-    return null;
-  }
-
-  async mapToResponseDto(user: User) {
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
-  }
-
-  private mapUserToElastic(user: User) {
-    return {
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role,
-      isActive: user.isActive,
-      createdAt: user.createdAt,
-    };
-  }
-} 
-
+}

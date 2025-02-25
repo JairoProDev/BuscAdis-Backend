@@ -6,6 +6,15 @@ export const setupSwagger = (
   app: INestApplication,
   configService: ConfigService,
 ): void => {
+  const apiUrl = configService.get<string>('apiUrl'); // Lee la URL de la API, con tipo explícito
+
+  // Mejor manejo de errores si la URL no está definida
+  if (!apiUrl) {
+    console.warn("API_URL is not defined. Swagger might not work correctly on a remote server. Using default: http://localhost:3000");
+    // Alternativamente, puedes lanzar un error si API_URL es *obligatorio* para el funcionamiento.
+    // throw new Error("API_URL environment variable is not set!");
+  }
+
   const options = new DocumentBuilder()
     .setTitle('Buscadis API')
     .setDescription('The Buscadis marketplace API documentation')
@@ -20,13 +29,13 @@ export const setupSwagger = (
     .addTag('messages', 'Messaging system endpoints')
     .addTag('reports', 'Report management endpoints')
     .addTag('notifications', 'Notification system endpoints')
-    .addServer(configService.get('apiUrl'))
+    .addServer(apiUrl || 'http://localhost:3000') // Usa la URL o un valor predeterminado
     .build();
 
   const document = SwaggerModule.createDocument(app, options);
-  SwaggerModule.setup('api/docs', app, document, {
+  SwaggerModule.setup('api/docs', app, document, { // La ruta donde se sirve la documentación
     swaggerOptions: {
       persistAuthorization: true,
     },
   });
-}; 
+};

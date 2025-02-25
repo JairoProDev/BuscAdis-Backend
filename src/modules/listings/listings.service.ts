@@ -4,11 +4,12 @@ import {
   ConflictException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, MoreThan, Like, FindOptionsWhere, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { Repository, In, MoreThan, Like, FindOptionsWhere, Between, LessThanOrEqual, MoreThanOrEqual, Not } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
-import slugify from 'slugify'; // Importación por defecto
+import slugify from 'slugify';
 import { Listing, ListingStatus } from './entities/listing.entity';
 import { User } from '../users/entities/user.entity';
 import { Category } from '../categories/entities/category.entity';
@@ -18,14 +19,16 @@ import {
   CreateListingDto,
   UpdateListingDto,
   SearchListingDto,
-  ListingResponseDto,
+  ListingResponseDto, // Asegúrate de tener este DTO
 } from './dto/listing.dto';
-import { SearchResponse } from '@elastic/elasticsearch/lib/api/types';
+import { SearchResponse } from '@elastic/elasticsearch/lib/api/types'; // Importante para el tipado
+import {ImageDto} from './dto/listing.dto';
 
 
 @Injectable()
 export class ListingsService {
   private readonly indexName = 'listings';
+  private readonly logger = new Logger(ListingsService.name); // Logger
 
   constructor(
     @InjectRepository(Listing)
@@ -35,62 +38,82 @@ export class ListingsService {
     private readonly elasticsearchService: ElasticsearchService,
     private readonly storageService: StorageService,
   ) {
-    this.createIndex();
+    this.createIndex(); // Llama a createIndex para asegurar que el índice exista
   }
 
   private async createIndex() {
-    const checkIndex = await this.elasticsearchService.indices.exists({
-      index: this.indexName,
-    });
+        try {
+            const checkIndex = await this.elasticsearchService.indices.exists({
+                index: this.indexName,
+            });
 
-    if (!checkIndex.value) { // Cambiado .body por .value
-      await this.elasticsearchService.indices.create({
-        index: this.indexName,
-        body: {
-          mappings: {
-            properties: {
-              id: { type: 'keyword' },
-              title: { type: 'text' },
-              slug: { type: 'keyword' },
-              description: { type: 'text' },
-              type: { type: 'keyword' },
-              price: { type: 'float' },
-              priceType: { type: 'keyword' },
-              status: { type: 'keyword' },
-              location: {
-                type: 'geo_point', // Esto creo que esta bien
-                properties: { //Revisar
-                  coordinates: { type: 'geo_point' }, //Revisar
-                  address: { type: 'text' },
-                  city: { type: 'keyword' },
-                  state: { type: 'keyword' },
-                  country: { type: 'keyword' },
-                },
-              },
-              categoryIds: { type: 'keyword' },
-              ownerId: { type: 'keyword' }, //Esto creo que no va
-              isActive: { type: 'boolean' },
-              isFeatured: { type: 'boolean' },
-              isVerified: { type: 'boolean' },
-              isUrgent: { type: 'boolean' },
-              createdAt: { type: 'date' },
-              publishedAt: { type: 'date' },
-              expiresAt: { type: 'date' },
-            },
-          },
-        },
-      });
+            if (!checkIndex.value) {
+                await this.elasticsearchService.indices.create({
+                    index: this.indexName,
+                    body: {
+                        settings: {
+                            analysis: {
+                                analyzer: {
+                                    spanish_analyzer: {
+                                        type: 'standard', // Usar 'standard', el analizador 'spanish' es predefinido
+                                        stopwords: '_spanish_' // Stopwords predefinidos para español
+                                    }
+                                }
+                            }
+                        },
+                        mappings: {
+                          properties: {
+                            id: { type: 'keyword' },
+                            title: {
+                              type: 'text',
+                              analyzer: 'spanish_analyzer',
+                              fields: {
+                                keyword: {
+                                  type: 'keyword',
+                                  ignore_above: 256,
+                                },
+                              },
+                            },
+                            slug: { type: 'keyword' },
+                            description: {
+                              type: 'text',
+                              analyzer: 'spanish_analyzer',
+                            },
+                            type: { type: 'keyword' }, // ListingType enum
+                            price: { type: 'float' },
+                            priceType: { type: 'keyword' }, // PriceType enum
+                            status: { type: 'keyword' },  //ListingStatus
+                            condition: { type: 'keyword' }, // ProductCondition enum
+                            location: { type: 'geo_point' },
+                            categories: { type: 'keyword' }, // Relación a Category
+                            seller: { type: 'keyword' },      //Relación a User
+                            isActive: { type: 'boolean' },
+                            isFeatured: { type: 'boolean' },
+                            isVerified: { type: 'boolean' },
+                            createdAt: { type: 'date' },
+                            updatedAt: { type: 'date' },
+                            publishedAt: { type: 'date' },
+                            expiresAt: {type: 'date'},
+                          },
+                        },
+                    }
+                });
+                this.logger.log(`Created Elasticsearch index: ${this.indexName}`);
+            } else {
+                this.logger.log(`Elasticsearch index already exists: ${this.indexName}`);
+            }
+        } catch (error) {
+            this.logger.error(`Error creating Elasticsearch index: ${(error as Error).message}`, (error as Error).stack);
+        }
     }
-  }
-
   async createQuick(
     quickListingDto: QuickListingDto,
     owner: User,
   ): Promise<Listing> {
     try {
-      const slug = this.generateSlug(quickListingDto.title ?? ''); // Ya es correcto, y manejo de nullish
+      const slug = this.generateSlug(quickListingDto.title || '');
 
-      // Validaciones mínimas (ya las tienes, las dejo)
+      // Validaciones
       if (!quickListingDto.title) {
         throw new BadRequestException('El título es requerido');
       }
@@ -101,48 +124,52 @@ export class ListingsService {
         throw new BadRequestException('El número de WhatsApp es requerido');
       }
 
-      // Handle media files if present
-      let mediaUrls: string[] = [];
-      if (quickListingDto.images?.length > 0) { // Usar images en lugar de media
+      // Subida de imágenes
+      let uploadedImages: ImageDto[] = [];
+      if (quickListingDto.images?.length > 0) {
         try {
-          mediaUrls = await Promise.all(
-            quickListingDto.images.map(file => this.storageService.uploadFile(file)),
+          uploadedImages = await Promise.all(
+            quickListingDto.images.map(async (file, index) => {
+                const url = await this.storageService.uploadFile(file);
+                return{
+                    url,
+                    order: index,
+                    alt: ''
+                }
+            }),
           );
-        } catch (error) {
-          console.error('Error uploading media:', error);
-          // Continue without media if upload fails
+        } catch (uploadError) {
+          this.logger.error(
+            'Error uploading images:',
+            (uploadError as Error).message,
+            (uploadError as Error).stack,
+          );
+          // Continúa sin las imágenes si falla la subida.  Podrías lanzar un error aquí si las imágenes son *obligatorias*.
         }
       }
 
-      // Set expiration date (30 days from now)
+      // Fecha de expiración
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 30);
 
-
-      // Buscar categorias basado en categoryIds.  Usamos el operador '|| []'
-      // para manejar el caso donde categoryIds sea undefined.
-        const categories = await this.categoryRepository.find({
-            where: { id: In(quickListingDto.categoryIds || []) },
-        });
+      // Buscar categorías
+      const categories = await this.categoryRepository.find({
+        where: { id: In(quickListingDto.categoryIds || []) },
+      });
 
 
       const listing = await this.listingRepository.save({
         title: quickListingDto.title,
         description: quickListingDto.description,
         slug,
-        seller: owner, // Corregido:  la propiedad en Listing se llama 'seller'
+        seller: owner, //  'seller'
         type: quickListingDto.type,
-        categories: categories, // Asignar las categorias encontradas
+        categories: categories, // Asigna las categorías
         contact: quickListingDto.contact,
         location: quickListingDto.location,
-        price: quickListingDto.price, //Ya viene de QuickListingDto
-        images: mediaUrls.map((url, index) => ({ //Cambié media por images.
-          url,
-          order: index,
-          isPrimary: index === 0, //Si quieres añadir isPrimary.
-          alt: ''
-        })),
-        status: ListingStatus.ACTIVE,  // Usar el enum, no la cadena directamente
+        price: quickListingDto.price,
+        images: uploadedImages,
+        status: ListingStatus.ACTIVE,
         publishedAt: new Date(),
         expiresAt,
         isActive: true,
@@ -151,23 +178,29 @@ export class ListingsService {
         isUrgent: false,
       });
 
-      // Index the listing if elasticsearch is available
+      // Indexar en Elasticsearch
       try {
         await this.indexListing(listing);
-      } catch (error) {
-        console.error('Error indexing listing:', error);
-        // Continue even if indexing fails
+      } catch (indexError) {
+        this.logger.error(
+          'Error indexing listing:',
+          (indexError as Error).message,
+          (indexError as Error).stack,
+        );
+        // Continúa aunque falle la indexación.
       }
 
       return listing;
     } catch (error) {
-      console.error('Error in createQuick:', error);
+      this.logger.error('Error in createQuick:', (error as Error).message, (error as Error).stack);
+
       if (error instanceof BadRequestException) {
-        throw error;
+        throw error; // Re-lanza BadRequestException
       }
-      //Si no quieres pasar el error completo, es preferible enviar solo el mensaje.
+
       throw new BadRequestException(
-        (error as Error).message || 'Error al crear el anuncio.  Por favor intenta de nuevo.',
+        (error as Error).message ||
+        'Error al crear el anuncio. Por favor, intenta de nuevo.',
       );
     }
   }
@@ -175,35 +208,35 @@ export class ListingsService {
   private generateSlug(title: string): string {
     const baseSlug = slugify(title, { lower: true, strict: true });
     const timestamp = Date.now();
-    return `${baseSlug}-${timestamp}`;
+    return `<span class="math-inline">\{baseSlug\}\-</span>{timestamp}`;
   }
+
 
   async create(createListingDto: CreateListingDto, seller: User): Promise<Listing> {
-    const slug = slugify(createListingDto.title ?? '', { lower: true }); // Ya es correcto, manejo de nullish
 
-    const existingListing = await this.listingRepository.findOne({
-      where: { slug },
-    });
+      try{
+        const slug = this.generateSlug(createListingDto.title);
+        const categories = await this.categoryRepository.findByIds(createListingDto.categoryIds);
 
-    if (existingListing) {
-      const timestamp = Date.now();
-      const uniqueSlug = `${slug}-${timestamp}`;
-      const listing = this.listingRepository.create({
-        ...createListingDto,
-        slug: uniqueSlug,
-        seller,
-      });
-      return this.listingRepository.save(listing);
+        const listing = this.listingRepository.create({
+            ...createListingDto,
+            slug,
+            seller,
+            categories, //Asegurate de que en el DTO pones categories, y en la entidad categories tambien.
+            status: createListingDto.status || ListingStatus.ACTIVE, //Por defecto activo
+            publishedAt: new Date(),
+          });
+
+          const savedListing = await this.listingRepository.save(listing);
+          await this.indexListing(savedListing);
+          return savedListing;
+
+      } catch(error){
+        this.logger.error(`Error creating listing: ${(error as Error).message}`, (error as Error).stack);
+        throw new BadRequestException((error as Error).message || 'Error al crear el anuncio'); // Mejorar mensajes de error
+
+      }
     }
-
-    const listing = this.listingRepository.create({
-      ...createListingDto,
-      slug,
-      seller,
-    });
-
-    return this.listingRepository.save(listing);
-  }
 
   async findAll(): Promise<Listing[]> {
     return this.listingRepository.find({
@@ -217,21 +250,25 @@ export class ListingsService {
         isUrgent: 'DESC',
         publishedAt: 'DESC',
       },
-      relations: ['seller', 'category'], // Corregido: la relación se llama 'seller'
+      relations: ['seller', 'categories'], // Carga las relaciones
     });
   }
 
   async findOne(id: string): Promise<Listing> {
     const listing = await this.listingRepository.findOne({
       where: { id },
-      relations: ['seller', 'category'], // Corregido: la relación se llama 'seller'
+      relations: ['seller', 'categories'], // Carga las relaciones
     });
 
     if (!listing) {
       throw new NotFoundException('Anuncio no encontrado');
     }
 
-    if (!listing.isActive || listing.status !== ListingStatus.ACTIVE || listing.expiresAt < new Date()) {
+    if (
+      !listing.isActive ||
+      listing.status !== ListingStatus.ACTIVE ||
+      listing.expiresAt < new Date()
+    ) {
       throw new NotFoundException('Este anuncio ya no está disponible');
     }
 
@@ -246,36 +283,40 @@ export class ListingsService {
     const listing = await this.findOne(id);
 
     if (listing.seller.id !== user.id) {
-      throw new ForbiddenException('You can only update your own listings');
+      throw new ForbiddenException(
+        'Solo puedes actualizar tus propios anuncios',
+      );
     }
 
     if (updateListingDto.title) {
-      const newSlug = slugify(updateListingDto.title, { lower: true }); // Ya es correcto
-      const existingListing = await this.listingRepository.findOne({
-        where: { slug: newSlug },
-      });
+       const newSlug = this.generateSlug(updateListingDto.title);
+        // Comprueba si el nuevo slug ya existe (y no pertenece al mismo anuncio)
+        const existingListing = await this.listingRepository.findOne({
+            where: { slug: newSlug, id: Not(id) }, // Excluye el anuncio actual
+        });
 
-      if (existingListing && existingListing.id !== id) {
-        const timestamp = Date.now();
-        // Usamos directamente la propiedad `slug` del DTO.
-        updateListingDto.slug = `${newSlug}-${timestamp}`;
-      } else {
-         updateListingDto.slug = newSlug; //Asignar directamente a updateListingDto
-      }
-    }
-    //Usar una interface para añadir publishedAt.
-    interface UpdateListingDtoWithPublishedAt extends UpdateListingDto {
-        publishedAt?: Date;
+        if (existingListing) {
+            updateListingDto.slug = `<span class="math-inline">\{newSlug\}\-</span>{Date.now()}`; // Añade un timestamp para hacerlo único
+        } else {
+            updateListingDto.slug = newSlug; // Usa el nuevo slug
+        }
     }
 
-    if (updateListingDto.status === ListingStatus.PUBLISHED && !listing.publishedAt) {
-      // Usamos la interface.
-        (updateListingDto as UpdateListingDtoWithPublishedAt).publishedAt = new Date();
+    //Si la categoría viene en el DTO, actualiza las categorías
+    if(updateListingDto.categoryIds){
+        const categories = await this.categoryRepository.findByIds(updateListingDto.categoryIds);
+        listing.categories = categories;
     }
+
+     // Asegura que publishedAt se establezca solo una vez.
+     if (updateListingDto.status === ListingStatus.PUBLISHED && !listing.publishedAt) {
+        listing.publishedAt = new Date();
+    }
+
 
     Object.assign(listing, updateListingDto);
     const updatedListing = await this.listingRepository.save(listing);
-    await this.indexListing(updatedListing); //Pasamos updatedListing, que es de tipo Listing.
+    await this.indexListing(updatedListing); // Actualiza el índice de Elasticsearch
 
     return updatedListing;
   }
@@ -284,7 +325,7 @@ export class ListingsService {
     const listing = await this.findOne(id);
 
     if (listing.seller.id !== user.id) {
-      throw new ForbiddenException('You can only delete your own listings');
+      throw new ForbiddenException('Solo puedes eliminar tus propios anuncios');
     }
 
     await this.listingRepository.remove(listing);
@@ -294,89 +335,105 @@ export class ListingsService {
     });
   }
 
-async search(searchDto: SearchListingDto) {
-    const where: FindOptionsWhere<Listing> = {
-      isActive: true,
-      status: ListingStatus.ACTIVE,
-    };
+    async search(searchDto: SearchListingDto) {
+        const where: FindOptionsWhere<Listing> = {
+            isActive: true,
+            status: ListingStatus.ACTIVE,
+        };
 
-    // Búsqueda por texto
-    if (searchDto.query) {
-      where.title = Like(`%${searchDto.query}%`);
-    }
+        // Búsqueda por texto (usando Elasticsearch)
+        if (searchDto.query) {
+           try{
+                const { body } = await this.elasticsearchService.search<SearchResponse<Listing>>({ //Usa el SearchResponse.
+                    index: this.indexName,
+                    body: {
+                        query: {
+                            multi_match: {
+                                query: searchDto.query,
+                                fields: ['title', 'description'],
+                                fuzziness: 'AUTO'
+                            }
+                        }
+                    }
+                });
+                const hits = body.hits.hits;
+                const listingIds = hits.map((hit: any) => hit._source.id);
 
-    // Filtro por categoría
-    if (searchDto.categoryId) {
-      where.category = { id: searchDto.categoryId };
-    }
-
-    // Filtro por ubicación
-  //Si no existe location, coordenadas no existe, si existe coordenadas, existe lat y lon.
-
-    if (searchDto.location?.latitude && searchDto.location?.longitude)
-    {
-       //Ejemplo usando búsqueda por cercanía, ajusta según tu base de datos.
-
-        const radiusInMeters = (searchDto.location.radius ?? 10) * 1000; //Valor por defecto.
-
-        //Para usar la función `geoCircle` necesitas un plugin como `typeorm-extension`.
-        // where.location = {
-        //     $geoWithin: {
-        //         $centerSphere: [[searchDto.location.longitude, searchDto.location.latitude], radiusInMeters / 6378100] //Radio de la tierra en metros.
-        //     }
-        // };
-        //Para una búsqueda simple por rango:
-        const lat = searchDto.location.latitude;
-        const lon = searchDto.location.longitude;
-        const range = 0.1; //Ajustar
-
-        where.location = {
-          coordinates: {
-             lat: Between(lat - range, lat + range),
-             lon: Between(lon - range, lon + range)
-          }
-
-        } as FindOptionsWhere<Listing>; //Aserción porque coordinates no matchea con el tipo esperado.
+                // Si no hay resultados, retornar un array vacío en lugar de hacer otra consulta.
+                if(listingIds.length === 0) {
+                    return {
+                        items: [],
+                        total: 0,
+                        page: searchDto.page ?? 1,
+                        limit: searchDto.limit ?? 10,
+                        pages: 0,
+                      };
+                }
 
 
-    }
+                where.id = In(listingIds); // Usa los IDs de Elasticsearch
 
-
-    // Filtro por rango de precios
-     if (searchDto.price?.min || searchDto.price?.max) {
-        if (searchDto.price.min && searchDto.price.max) {
-            where.price = Between(searchDto.price.min, searchDto.price.max);
-        } else if (searchDto.price.min) {
-            where.price = MoreThanOrEqual(searchDto.price.min);
-        } else if (searchDto.price.max) {
-            where.price = LessThanOrEqual(searchDto.price.max);
+           } catch(error){
+                this.logger.error(`Error searching in Elasticsearch: ${(error as Error).message}`, (error as Error).stack);
+                // Opcional: podrías decidir no usar Elasticsearch si falla, y hacer una búsqueda por base de datos
+           }
         }
+
+      //Filtro por categoría
+      if (searchDto.categoryId) {
+        where.category = { id: searchDto.categoryId } as any;
+      }
+
+
+        // Filtro por ubicación (búsqueda simple por rango)
+       if (searchDto.location?.latitude && searchDto.location?.longitude) {
+            const lat = searchDto.location.latitude;
+            const lon = searchDto.location.longitude;
+            const range = 0.1; // Ajusta este valor según sea necesario
+
+            where.location = {
+                coordinates: {
+                    lat: Between(lat - range, lat + range),
+                    lon: Between(lon - range, lon + range)
+                }
+            } as Partial<FindOptionsWhere<Listing>>; //Usar Partial.
+        }
+
+        // Filtro por rango de precios
+      if (searchDto.price?.min || searchDto.price?.max) {
+        if (searchDto.price.min && searchDto.price.max) {
+          where.price = Between(searchDto.price.min, searchDto.price.max);
+        } else if (searchDto.price.min) {
+          where.price = MoreThanOrEqual(searchDto.price.min);
+        } else if (searchDto.price.max) {
+          where.price = LessThanOrEqual(searchDto.price.max);
+        }
+      }
+
+
+        const [items, total] = await this.listingRepository.findAndCount({
+            where,
+            order: {
+                isFeatured: 'DESC',
+                isUrgent: 'DESC',
+                createdAt: 'DESC',
+            },
+            skip: (searchDto.page ?? 1 - 1) * (searchDto.limit ?? 10),
+            take: searchDto.limit ?? 10,
+            relations: ['seller', 'categories'], // Carga las relaciones
+        });
+
+        return {
+            items,
+            total,
+            page: searchDto.page ?? 1,
+            limit: searchDto.limit ?? 10,
+            pages: Math.ceil(total / (searchDto.limit ?? 10)),
+        };
     }
 
 
-    const [items, total] = await this.listingRepository.findAndCount({
-      where,
-      order: {
-        isFeatured: 'DESC',
-        isUrgent: 'DESC',
-        createdAt: 'DESC',
-      },
-      skip: (searchDto.page ?? 1 - 1) * (searchDto.limit ?? 10), //Valores por defecto.
-      take: searchDto.limit ?? 10, // Valores por defecto.
-      relations: ['seller', 'category'], // Corregido: la relación se llama 'seller'
-    });
-
-    return {
-      items,
-      total,
-      page: searchDto.page ?? 1, //Valores por defecto
-      limit: searchDto.limit ?? 10,//Valores por defecto
-      pages: Math.ceil(total / (searchDto.limit ?? 10)), //Valores por defecto
-    };
-  }
-
-
-  private async indexListing(listing: Listing) {
+    private async indexListing(listing: Listing) {
     const document = {
       id: listing.id,
       title: listing.title,
@@ -384,19 +441,16 @@ async search(searchDto: SearchListingDto) {
       description: listing.description,
       type: listing.type,
       price: listing.price,
-      priceType: listing.priceType,
+      priceType: listing.priceType, // Asegúrate de que priceType exista en tu entidad y DTOs
       status: listing.status,
       location: listing.location
         ? {
-            ...listing.location,
-            coordinates: {
-              lat: listing.location.coordinates.lat, // Simplificado
-              lon: listing.location.coordinates.lon, // Simplificado
-            },
+            lat: listing.location.coordinates.lat,
+            lon: listing.location.coordinates.lon,
           }
-        : undefined,
-        categoryIds: listing.category ? [listing.category.id] : [], // category en singular
-      sellerId: listing.seller.id, // Corregido a seller
+        : undefined, // Maneja el caso en que location pueda ser null
+      categoryIds: listing.categories?.map((cat:any) => cat.id) || [],  // Extrae los IDs de las categorías, any temporal
+      sellerId: listing.seller.id,
       isActive: listing.isActive,
       isFeatured: listing.isFeatured,
       isVerified: listing.isVerified,
@@ -406,17 +460,26 @@ async search(searchDto: SearchListingDto) {
       expiresAt: listing.expiresAt,
     };
 
-     await this.elasticsearchService.index<SearchResponse<typeof document>>({ //Usa el tipo para el body
+    // Sin tipado genérico.  El tipo se infiere de `document`.
+    await this.elasticsearchService.index({
       index: this.indexName,
       id: listing.id,
-      body: document, //Se infiere el tipo
+      body: document,
     });
   }
 
 
-  //No es necesario, se puede usar directamente en el controller.
+
   mapToResponseDto(listing: Listing): ListingResponseDto {
-    const { seller, ...listingData } = listing;
+    const { seller, categories, ...listingData } = listing;
+
+    // Mapear las categorías a un formato más simple (si es necesario)
+    const mappedCategories = categories.map((category: any) => ({
+      id: category.id,
+      name: category.name,
+      // ... otras propiedades de la categoría que quieras incluir
+    }));
+
     return {
       ...listingData,
       seller: {
@@ -424,7 +487,9 @@ async search(searchDto: SearchListingDto) {
         firstName: seller.firstName,
         lastName: seller.lastName,
         email: seller.email,
+        // ... otras propiedades del vendedor que quieras incluir en la respuesta
       },
+      categories: mappedCategories,
     };
   }
 }

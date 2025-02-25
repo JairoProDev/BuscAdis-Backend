@@ -1,61 +1,30 @@
+// src/modules/users/subscribers/user.subscriber.ts
 import {
-  DataSource,
-  EntitySubscriberInterface,
-  EventSubscriber,
-  InsertEvent,
-  UpdateEvent,
-  RemoveEvent,
-} from 'typeorm';
-import { ElasticsearchService } from '@nestjs/elasticsearch';
-import { User } from '../entities/user.entity';
-import { Injectable } from '@nestjs/common';
+    EventSubscriber,
+    EntitySubscriberInterface,
+    InsertEvent,
+    UpdateEvent,
+  } from 'typeorm';
+  import { User } from '../entities/user.entity'; //  User
+  import { UsersService } from '../users.service'; //  UsersService
 
-@Injectable()
-@EventSubscriber()
-export class UserSubscriber implements EntitySubscriberInterface<User> {
-  constructor(
-    dataSource: DataSource,
-    private readonly elasticsearchService: ElasticsearchService,
-  ) {
-    dataSource.subscribers.push(this);
-  }
+  @EventSubscriber()
+  export class UserSubscriber implements EntitySubscriberInterface<User> {
+    constructor(private readonly usersService: UsersService) {}
 
-  listenTo() {
-    return User;
-  }
+    listenTo() {
+      return User;
+    }
 
-  private async indexUser(user: User) {
-    await this.elasticsearchService.index({
-      index: 'users',
-      id: user.id,
-      body: {
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        isActive: user.isActive,
-        createdAt: user.createdAt,
-      },
-    });
-  }
+    async afterInsert(event: InsertEvent<User>) {
+        if (event.entity) {
+            await this.usersService.indexUser(event.entity);
+        }
+    }
 
-  async afterInsert(event: InsertEvent<User>) {
-    await this.indexUser(event.entity);
-  }
-
-  async afterUpdate(event: UpdateEvent<User>) {
-    if (event.entity) {
-      await this.indexUser(event.entity);
+    async afterUpdate(event: UpdateEvent<User>) {
+        if (event.entity) {
+            await this.usersService.indexUser(event.entity as User); // Ya es de tipo User
+        }
     }
   }
-
-  async beforeRemove(event: RemoveEvent<User>) {
-    if (event.entityId) {
-      await this.elasticsearchService.delete({
-        index: 'users',
-        id: event.entityId as string,
-      });
-    }
-  }
-} 
