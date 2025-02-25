@@ -56,13 +56,12 @@ export class MessagesService {
     }
 
   async findAll(user: User, listingId?: string): Promise<Message[]> {
-    const where: any = [
+    const where: { sender?: { id: string }; receiver?: { id: string }; listing?: { id: string } }[] = [
         { sender: { id: user.id } },
         { receiver: { id: user.id } },
     ];
-    // Si se proporciona el listingId, se filtra por ese listing.
     if (listingId) {
-        where.forEach(condition => condition.listing = { id: listingId });
+        where.forEach((condition: { listing?: { id: string } }) => condition.listing = { id: listingId });
     }
     return this.messagesRepository.find({
         where: where,
