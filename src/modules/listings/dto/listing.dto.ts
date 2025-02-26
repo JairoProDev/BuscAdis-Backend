@@ -215,6 +215,10 @@ export class CreateListingDto extends QuickListingDto {
   @ValidateNested()
   @Type(() => LocationDto)
   location: LocationDto = new LocationDto();
+
+  @ApiProperty({ enum: ListingStatus })
+  @IsEnum(ListingStatus)
+  status: ListingStatus;
 }
 
 export class UpdateListingDto {
@@ -271,6 +275,11 @@ export class UpdateListingDto {
   @ApiPropertyOptional()
   @IsOptional()
   metadata?: Record<string, any>;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  slug?: string;
 }
 
 export class SearchListingDto {
