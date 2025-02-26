@@ -200,6 +200,9 @@ export class Listing {
   @JoinColumn({ name: 'categoryId' })
   category: Category;
 
+  @Column()
+  condition: string;
+
   @BeforeInsert()
   @BeforeUpdate()
   generateSlug() {

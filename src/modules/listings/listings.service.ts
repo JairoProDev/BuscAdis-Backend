@@ -435,7 +435,7 @@ export class ListingsService {
 
 
   mapToResponseDto(listing: Listing): ListingResponseDto {
-    const { seller, categories, ...listingData } = listing;
+    const { seller, categories, images, ...listingData } = listing;
 
     return {
       ...listingData,
@@ -449,7 +449,7 @@ export class ListingsService {
         id: category.id,
         name: category.name,
       })) || [],
-      images: listing.images?.map(image => ({
+      images: images?.map(image => ({
         id: image.id,
         url: image.url,
         thumbnail: image.thumbnail,
