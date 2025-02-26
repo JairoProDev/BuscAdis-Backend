@@ -10,6 +10,7 @@ import { Listing } from '../listings/entities/listing.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateFavoriteDto } from './dto/favorite.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { FavoriteResponseDto } from './dto/favorite.dto'
 
 @Injectable()
 export class FavoritesService {
@@ -88,12 +89,12 @@ export class FavoritesService {
     await this.favoritesRepository.delete({ user: { id: user.id } });
   }
 
-    async mapToResponseDto(favorite: Favorite): FavoriteResponseDto {
+    async mapToResponseDto(favorite: Favorite): Promise<FavoriteResponseDto> {
         return {
         id: favorite.id,
         listing: {
             ...favorite.listing,
-            favorites: favorite.listing.favorites || 0, // Asegúrate de que favorites esté presente
+            favorites: favorite.listing.favorites ? favorite.listing.favorites.length : 0,
         },
         createdAt: favorite.createdAt
         }

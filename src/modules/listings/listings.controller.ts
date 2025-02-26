@@ -91,13 +91,13 @@ export class ListingsController {
     description: 'Returns an array of user listings',
     type: [ListingResponseDto],
   })
-  async getMyListings(@Request() req: AuthenticatedRequest): Promise<ListingResponseDto[]> { // Usa AuthenticatedRequest
+  async getMyListings(@Request() req: AuthenticatedRequest): Promise<ListingResponseDto[]> {
     const searchDto: SearchListingDto = {
       ownerId: req.user.id,
       limit: 100,
     };
     const { items } = await this.listingsService.search(searchDto);
-      return items.map((item) => this.listingsService.mapToResponseDto(item)); //Asegura el mapeo
+    return Promise.all(items.map(item => this.listingsService.mapToResponseDto(item))); // Asegura el mapeo
   }
 
   @Get(':id')
