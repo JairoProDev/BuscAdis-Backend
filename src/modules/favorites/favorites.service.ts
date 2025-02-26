@@ -88,10 +88,13 @@ export class FavoritesService {
     await this.favoritesRepository.delete({ user: { id: user.id } });
   }
 
-    async mapToResponseDto(favorite: Favorite) {
+    async mapToResponseDto(favorite: Favorite): FavoriteResponseDto {
         return {
         id: favorite.id,
-        listing: favorite.listing, // Se devuelve el listing completo
+        listing: {
+            ...favorite.listing,
+            favorites: favorite.listing.favorites || 0, // Asegúrate de que favorites esté presente
+        },
         createdAt: favorite.createdAt
         }
     }

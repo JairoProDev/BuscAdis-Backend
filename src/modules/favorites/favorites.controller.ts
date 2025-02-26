@@ -54,9 +54,8 @@ export class FavoritesController {
     type: [FavoriteResponseDto],
   })
   async findAll(
-      @Request() req: AuthenticatedRequest, //  AuthenticatedRequest
-    ): Promise<FavoriteResponseDto[]>
-    {
+      @Request() req: AuthenticatedRequest,
+  ): Promise<FavoriteResponseDto[]> {
     const favorites = await this.favoritesService.findAll(req.user);
     return Promise.all(favorites.map(favorite =>
       this.favoritesService.mapToResponseDto(favorite)

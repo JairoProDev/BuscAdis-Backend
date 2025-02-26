@@ -178,7 +178,7 @@ export class Listing {
   reports: Report[];
 
   @OneToMany(() => Favorite, favorite => favorite.listing)
-  favoritedBy: Favorite[];
+  favorites: Favorite[];
 
   @Column('jsonb', { nullable: true })
   metadata: Record<string, any>;
@@ -195,6 +195,10 @@ export class Listing {
 
   @Column({ select: false, insert: false, update: false, nullable: true })
   relevanceScore?: number;
+
+  @ManyToOne(() => Category, category => category.listings)
+  @JoinColumn({ name: 'categoryId' })
+  category: Category;
 
   @BeforeInsert()
   @BeforeUpdate()
