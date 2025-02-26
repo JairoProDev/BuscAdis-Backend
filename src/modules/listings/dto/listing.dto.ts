@@ -143,6 +143,25 @@ export class QuickListingDto {
   @ValidateNested()
   @Type(() => LocationDto)
   location?: LocationDto;
+
+  @ApiProperty({ type: [ImageDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ImageDto)
+  images?: Express.Multer.File[];
+
+  @ApiProperty({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  @ArrayMinSize(1)
+  categoryIds?: string[];
+
+  @ApiProperty()
+  @IsNumber()
+  @Min(0)
+  price: number;
 }
 
 // DTO for advanced listing creation
@@ -151,14 +170,6 @@ export class CreateListingDto extends QuickListingDto {
   @IsOptional()
   @IsString()
   slug?: string;
-
-  @ApiProperty({
-    example: 100000,
-    description: 'The price of the listing',
-  })
-  @IsNumber()
-  @Min(0)
-  price: number = 0;
 
   @ApiProperty({
     enum: PriceType,
