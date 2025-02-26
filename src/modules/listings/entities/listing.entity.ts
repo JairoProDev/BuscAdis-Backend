@@ -19,7 +19,7 @@ import { Image } from '../../images/entities/image.entity';
 import { Message } from '../../messages/entities/message.entity';
 import { Report } from '../../reports/entities/report.entity';
 import { Favorite } from '../../favorites/entities/favorite.entity';
-import { slugify } from '../../common/utils/slugify';
+import { slugify } from '../../../common/utils/slugify';
 
 export enum ListingType {
   JOB = 'job',
