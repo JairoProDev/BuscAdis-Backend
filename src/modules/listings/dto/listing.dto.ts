@@ -21,28 +21,19 @@ import { Type } from 'class-transformer';
 import { ListingType, ListingStatus, PriceType } from '../entities/listing.entity';
 
 export class ImageDto {
-  @ApiProperty({
-    example: 'https://example.com/image.jpg',
-    description: 'The URL of the image',
-  })
+  @ApiProperty()
   @IsString()
-  url: string = '';
+  url: string;
 
-  @ApiPropertyOptional({
-    example: 'Beautiful house',
-    description: 'Alternative text for the image',
-  })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   alt?: string;
 
-  @ApiProperty({
-    example: 1,
-    description: 'The order of the image in the gallery',
-  })
+  @ApiProperty()
   @IsNumber()
   @Min(0)
-  order: number = 0;
+  order: number;
 }
 
 export class LocationDto {
@@ -108,13 +99,15 @@ export class ContactDto {
   @IsString()
   whatsapp?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsBoolean()
-  showEmail: boolean;
+  showEmail?: boolean;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsBoolean()
-  showPhone: boolean;
+  showPhone?: boolean;
 }
 
 // DTO for quick listing creation
@@ -433,16 +426,9 @@ export class ListingResponseDto {
   location: LocationDto;
 
   @ApiProperty({ type: () => ContactDto })
-  contact: {
-    showEmail: boolean;
-    showPhone: boolean;
-    name?: string;
-    email?: string;
-    phone?: string;
-    whatsapp?: string;
-  };
+  contact: ContactDto;
 
-  @ApiProperty()
+  @ApiProperty({ type: () => UserResponseDto })
   seller: {
     id: string;
     firstName: string;
@@ -450,17 +436,13 @@ export class ListingResponseDto {
     email: string;
   };
 
+  @ApiProperty({ type: [ImageDto] })
+  images: ImageDto[];
+
   @ApiProperty({ type: [Object] })
   categories: {
     id: string;
     name: string;
-  }[];
-
-  @ApiProperty({ type: [Object] })
-  images: {
-    id: string;
-    url: string;
-    thumbnail?: string;
   }[];
 
   @ApiPropertyOptional()

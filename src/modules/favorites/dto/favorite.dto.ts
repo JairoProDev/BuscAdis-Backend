@@ -22,9 +22,9 @@ export class FavoriteResponseDto {
 
   @ApiProperty({
     description: 'The listing that was favorited',
-    type: () => ListingResponseDto, //  ListingResponseDto
+    type: () => ListingResponseDto,
   })
-  listing: ListingResponseDto; //  ListingResponseDto
+  listing: ListingResponseDto;
 
   @ApiProperty({
     description: 'The date when the favorite was created',

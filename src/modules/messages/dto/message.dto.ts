@@ -80,6 +80,7 @@ export class MessageResponseDto {
     description: 'The listing the message is about',
     type: () => ListingResponseDto,
   })
+  @ApiProperty({ type: () => ListingResponseDto })
   listing: ListingResponseDto;
 
   @ApiProperty({

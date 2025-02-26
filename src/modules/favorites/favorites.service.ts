@@ -95,6 +95,10 @@ export class FavoritesService {
         listing: {
             ...favorite.listing,
             favorites: favorite.listing.favorites ? favorite.listing.favorites.length : 0,
+            contact: {
+                showEmail: favorite.listing.contact.showEmail ?? false,
+                showPhone: favorite.listing.contact.showPhone ?? false,
+            },
         },
         createdAt: favorite.createdAt
         }
