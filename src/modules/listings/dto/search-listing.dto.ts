@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEnum, IsNumber, IsObject, Min, Max, Type, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsNumber, IsObject, Min, Max, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ListingType, ListingStatus } from '../entities/listing.entity';
 
 export class PriceRangeDto {
