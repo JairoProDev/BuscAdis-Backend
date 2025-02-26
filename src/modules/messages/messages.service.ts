@@ -1,11 +1,12 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindOptionsWhere } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { User } from '../users/entities/user.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { CreateMessageDto, UpdateMessageDto, MessageResponseDto } from './dto/message.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ListingsService } from '../listings/listings.service'; // Import ListingsService
 
 @Injectable()
 export class MessagesService {
@@ -17,6 +18,7 @@ export class MessagesService {
     @InjectRepository(Listing)
     private readonly listingsRepository: Repository<Listing>,
     private readonly notificationsService: NotificationsService,
+    private readonly listingsService: ListingsService, // Inject ListingsService
   ) {}
 
   async create(createMessageDto: CreateMessageDto, sender: User, listingId: string): Promise<Message> {
@@ -48,20 +50,29 @@ export class MessagesService {
     return savedMessage;
   }
 
-  async findAll(user: User, listingId?: string): Promise<Message[]> {
-    const where: { sender?: { id: string }; receiver?: { id: string }; listing?: { id: string } }[] = [
-      { sender: { id: user.id } },
-      { receiver: { id: user.id } },
-    ];
+    async findAll(user: User, listingId?: string): Promise<Message[]> {
+        const where: FindOptionsWhere<Message> = {};
+
+        // Build the where clause conditionally
+        where.sender = { id: user.id };
+        where.receiver = { id: user.id} ;
+
+
     if (listingId) {
-      where.forEach((condition) => (condition.listing = { id: listingId }));
+      where.listing = { id: listingId };
     }
+
     return this.messagesRepository.find({
-      where,
+        where: [
+            where.sender,
+            where.receiver,
+           {listing: where.listing} // Add listing condition
+        ],
       relations: ['sender', 'receiver', 'listing'],
       order: { createdAt: 'DESC' },
     });
   }
+
 
   async findConversation(user: User, otherUserId: string): Promise<Message[]> {
     return this.messagesRepository.find({
@@ -89,7 +100,7 @@ export class MessagesService {
       .leftJoinAndSelect("listing.images", "image")
       .where("sender.id = :userId OR receiver.id = :userId", { userId: user.id })
       .orderBy("message.createdAt", "DESC")
-      .distinctOn(["listing.id"])
+      .distinctOn(["listing.id"]) // Use distinctOn for latest message per listing
       .getMany();
 
     return conversations;
@@ -144,18 +155,19 @@ export class MessagesService {
     await this.messagesRepository.save(message);
   }
 
-  mapToResponseDto(message: Message): MessageResponseDto {
-    return {
-      id: message.id,
-      sender: message.sender,
-      receiver: message.receiver,
-      listing: message.listing,
-      content: message.content,
-      isRead: message.isRead,
-      isArchived: message.isArchived,
-      isDeleted: message.isDeleted,
-      createdAt: message.createdAt,
-      updatedAt: message.updatedAt,
-    };
-  }
+    mapToResponseDto(message: Message): MessageResponseDto {
+        return {
+            id: message.id,
+            sender: message.sender,   //  User, not UserResponseDto
+            receiver: message.receiver, //  User, not UserResponseDto
+            listing: this.listingsService.mapToResponseDto(message.listing), // Use ListingsService
+            content: message.content,
+            isRead: message.isRead,
+            isArchived: message.isArchived,
+            isDeleted: message.isDeleted,
+            createdAt: message.createdAt,
+            updatedAt: message.updatedAt,
+            // readAt: message.readAt
+        };
+    }
 }

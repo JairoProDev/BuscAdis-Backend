@@ -3,12 +3,11 @@ import {
   IsString,
   IsUUID,
   IsOptional,
-  IsEnum,
   IsBoolean,
   IsNotEmpty,
   MaxLength,
 } from 'class-validator';
-import { MessageStatus } from '../entities/message.entity';
+// No need to import MessageStatus from the entity here.  It's not used in the DTOs
 import { UserResponseDto } from '../../users/dto/user.dto';
 import { ListingResponseDto } from '../../listings/dto/listing.dto';
 
@@ -18,6 +17,7 @@ export class CreateMessageDto {
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsUUID()
+  @IsNotEmpty() // Add IsNotEmpty
   receiverId: string;
 
   @ApiProperty({
@@ -25,6 +25,7 @@ export class CreateMessageDto {
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsUUID()
+  @IsNotEmpty() // Add IsNotEmpty
   listingId: string;
 
   @ApiProperty({
@@ -39,16 +40,20 @@ export class CreateMessageDto {
 }
 
 export class UpdateMessageDto {
-  @ApiProperty({
+  @ApiPropertyOptional({ // Use ApiPropertyOptional for optional properties
     description: 'Whether the message has been read',
     example: true,
   })
+  @IsOptional() // Mark as optional
+  @IsBoolean()
   isRead?: boolean;
 
-  @ApiProperty({
+  @ApiPropertyOptional({ // Use ApiPropertyOptional
     description: 'Whether the message has been archived',
     example: true,
   })
+  @IsOptional() // Mark as optional
+  @IsBoolean()
   isArchived?: boolean;
 
   @ApiPropertyOptional()
@@ -68,20 +73,19 @@ export class MessageResponseDto {
     description: 'The user who sent the message',
     type: () => UserResponseDto,
   })
-  sender: UserResponseDto;
+  sender: UserResponseDto; // Correct: uses UserResponseDto
 
   @ApiProperty({
     description: 'The user who received the message',
     type: () => UserResponseDto,
   })
-  receiver: UserResponseDto;
+  receiver: UserResponseDto; // Correct: uses UserResponseDto
 
   @ApiProperty({
     description: 'The listing the message is about',
     type: () => ListingResponseDto,
   })
-  @ApiProperty({ type: () => ListingResponseDto })
-  listing: ListingResponseDto;
+  listing: ListingResponseDto; // Correct: uses ListingResponseDto
 
   @ApiProperty({
     description: 'The content of the message',
@@ -137,4 +141,4 @@ export class ConversationDto {
 
   @ApiProperty()
   updatedAt: Date;
-} 
+}
