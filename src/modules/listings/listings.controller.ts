@@ -93,11 +93,10 @@ export class ListingsController {
   })
   async getMyListings(@Request() req: AuthenticatedRequest): Promise<ListingResponseDto[]> {
     const searchDto: SearchListingDto = {
-      ownerId: req.user.id,
       limit: 100,
     };
-    const { items } = await this.listingsService.search(searchDto);
-    return Promise.all(items.map(item => this.listingsService.mapToResponseDto(item)));
+    const { items } = await this.listingsService.search(searchDto, req.user.id);
+    return items;
   }
 
   @Get(':id')
