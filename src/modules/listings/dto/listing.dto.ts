@@ -1,4 +1,3 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   IsEnum,
@@ -7,7 +6,6 @@ import {
   IsArray,
   IsBoolean,
   IsObject,
-  IsUrl,
   IsUUID,
   IsEmail,
   IsPhoneNumber,
@@ -16,13 +14,18 @@ import {
   ValidateNested,
   ArrayMinSize,
   MinLength,
+  IsNotEmpty,
+  IsInt, // Import IsInt
 } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ListingType, ListingStatus, PriceType } from '../entities/listing.entity';
+import { UserResponseDto } from 'src/modules/users/dto/user.dto'; // Import UserResponseDto
 
 export class ImageDto {
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   url: string;
 
   @ApiPropertyOptional()
@@ -32,25 +35,41 @@ export class ImageDto {
 
   @ApiProperty()
   @IsNumber()
+  @IsNotEmpty()
   @Min(0)
   order: number;
+
+  // Optional ID and thumbnail
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  thumbnail?: string;
 }
 
 export class LocationDto {
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   address: string;
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   city: string;
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   state: string;
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   country: string;
 
   @ApiPropertyOptional()
@@ -62,99 +81,56 @@ export class LocationDto {
   };
 }
 
-export class CoordinatesDto {
-  @ApiProperty({
-    example: 40.7128,
-    description: 'The latitude',
-  })
-  @IsNumber()
-  lat: number = 0;
-
-  @ApiProperty({
-    example: -74.0060,
-    description: 'The longitude',
-  })
-  @IsNumber()
-  lon: number = 0;
-}
-
-export class ContactDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  email?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  whatsapp?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  showEmail?: boolean;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  showPhone?: boolean;
-}
 
 // DTO for quick listing creation
 export class QuickListingDto {
-  @ApiProperty({ example: 'Software Developer Position' })
-  @IsString()
-  @MinLength(5)
-  title: string;
+    @ApiProperty({ example: 'Software Developer Position' })
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(5)
+    title: string;
 
-  @ApiProperty({ example: 'Looking for a full-stack developer...' })
-  @IsString()
-  @MinLength(20)
-  description: string;
+    @ApiProperty({ example: 'Looking for a full-stack developer...' })
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(20)
+    description: string;
 
-  @ApiProperty({ enum: ListingType })
-  @IsEnum(ListingType)
-  type: ListingType;
+    @ApiProperty({ enum: ListingType })
+    @IsEnum(ListingType)
+    @IsNotEmpty()
+    type: ListingType;
 
-  @ApiProperty()
-  @ValidateNested()
-  @Type(() => ContactDto)
-  contact: ContactDto;
+    @ApiProperty()
+    @ValidateNested()
+    @Type(() => ContactDto) // Use ContactDto
+    @IsNotEmpty()
+    contact: ContactDto;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => LocationDto)
-  location?: LocationDto;
+    @ApiPropertyOptional()
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => LocationDto) // Use LocationDto
+    location?: LocationDto;
 
-  @ApiProperty({ type: [ImageDto] })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ImageDto)
-  images?: Express.Multer.File[];
 
-  @ApiProperty({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsUUID(undefined, { each: true })
-  @ArrayMinSize(1)
-  categoryIds?: string[];
+    @ApiPropertyOptional({ type: 'array', items: { type: 'string', format: 'binary' } })
+    @IsOptional()
+    images?: Express.Multer.File[]; // Correct type for file uploads
 
-  @ApiProperty()
-  @IsNumber()
-  @Min(0)
-  price: number;
+
+    @ApiProperty({ type: [String] })
+    @IsOptional()
+    @IsArray()
+    @IsUUID(undefined, { each: true })
+    @ArrayMinSize(1)
+    categoryIds?: string[];
+
+    @ApiProperty()
+    @IsNumber()
+    @IsNotEmpty()
+    @Min(0)
+    price: number;
 }
 
 // DTO for advanced listing creation
@@ -170,7 +146,8 @@ export class CreateListingDto extends QuickListingDto {
     description: 'The type of price',
   })
   @IsEnum(PriceType)
-  priceType: PriceType = PriceType.FIXED;
+  @IsNotEmpty()
+  priceType: PriceType;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -181,12 +158,14 @@ export class CreateListingDto extends QuickListingDto {
     type: [ImageDto],
     description: 'The images of the listing',
   })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ImageDto)
-  images: ImageDto[] = [];
+  images?: ImageDto[] = []; // Correct ImageDto usage
 
   @ApiProperty({ type: [String] })
+  @IsNotEmpty()
   @IsArray()
   @IsUUID(undefined, { each: true })
   @ArrayMinSize(1)
@@ -202,81 +181,32 @@ export class CreateListingDto extends QuickListingDto {
   @IsBoolean()
   isUrgent?: boolean;
 
+    @ApiProperty({
+        enum: ListingStatus,
+        default: ListingStatus.ACTIVE,
+        description: 'The status of the listing'
+    })
+    @IsEnum(ListingStatus)
+    @IsOptional() // Status is optional, with a default
+    status?: ListingStatus = ListingStatus.ACTIVE;
+
   @ApiProperty({
     description: 'The location of the listing',
   })
   @ValidateNested()
   @Type(() => LocationDto)
-  location: LocationDto = new LocationDto();
-
-  @ApiProperty({ enum: ListingStatus })
-  @IsEnum(ListingStatus)
-  status: ListingStatus;
+  @IsNotEmpty()
+  location: LocationDto;
 }
 
-export class UpdateListingDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MinLength(5)
-  title?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MinLength(20)
-  description?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsNumber()
-  price?: number;
-
-  @ApiPropertyOptional({ enum: PriceType })
-  @IsOptional()
-  @IsEnum(PriceType)
-  priceType?: PriceType;
-
-  @ApiPropertyOptional({ enum: ListingType })
-  @IsOptional()
-  @IsEnum(ListingType)
-  type?: ListingType;
-
-  @ApiPropertyOptional({ enum: ListingStatus })
-  @IsOptional()
-  @IsEnum(ListingStatus)
-  status?: ListingStatus;
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsUUID(undefined, { each: true })
-  categoryIds?: string[];
-
-  @ApiPropertyOptional({ type: () => LocationDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => LocationDto)
-  location?: LocationDto;
-
-  @ApiPropertyOptional({ type: () => ContactDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ContactDto)
-  contact?: ContactDto;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  metadata?: Record<string, any>;
-
-  @ApiPropertyOptional()
+export class UpdateListingDto extends PartialType(CreateListingDto) {
   @IsOptional()
   @IsString()
   slug?: string;
 }
 
 export class SearchListingDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Search query for name or email' })
   @IsOptional()
   @IsString()
   query?: string;
@@ -296,10 +226,11 @@ export class SearchListingDto {
   @IsUUID()
   categoryId?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsUUID()
-  ownerId?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsUUID()
+    sellerId?: string; // Add sellerId
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -315,9 +246,15 @@ export class SearchListingDto {
   @Min(0)
   maxPrice?: number;
 
-  @ApiPropertyOptional()
+    @ApiPropertyOptional({
+      type: Object,
+      description: 'Location filter',
+      example: { latitude: 40.7128, longitude: -74.0060, radius: 10 }
+  })
   @IsOptional()
   @IsObject()
+  @ValidateNested()
+  @Type(() => LocationDto) // Validate using LocationDto
   location?: {
     latitude: number;
     longitude: number;
@@ -357,17 +294,17 @@ export class SearchListingDto {
   @Type(() => Boolean)
   isUrgent?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ minimum: 1, default: 1 })
   @IsOptional()
-  @IsNumber()
   @Type(() => Number)
+  @IsInt()
   @Min(1)
   page?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ minimum: 1, default: 10 })
   @IsOptional()
-  @IsNumber()
   @Type(() => Number)
+  @IsInt()
   @Min(1)
   @Max(100)
   limit?: number;
@@ -377,24 +314,47 @@ export class SearchListingDto {
   @IsString()
   sort?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsEnum(['asc', 'desc'])
-  order?: 'asc' | 'desc';
+    @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc'})
+    @IsOptional()
+    @IsEnum(['asc', 'desc'])
+    order?: 'asc' | 'desc';
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsObject()
-  priceRange?: {
-    min?: number;
-    max?: number;
-  };
+    @ApiPropertyOptional({
+        description: 'Price range filter',
+        type: Object,
+        example: {min: 50, max: 200}
+    })
+    @IsOptional()
+    @ValidateNested()
+    @Type(() => PriceRangeDto) // Use PriceRangeDto
+    priceRange?: {
+        min?: number;
+        max?: number;
+    };
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsArray()
   @IsUUID(undefined, { each: true })
   categoryIds?: string[];
+}
+
+export class PriceRangeDto{
+    @ApiPropertyOptional({
+        description: "Minimum Price",
+        type: Number
+    })
+    @IsOptional()
+    @IsNumber()
+    min?:number
+
+    @ApiPropertyOptional({
+        description: "Maximum Price",
+        type: Number
+    })
+    @IsOptional()
+    @IsNumber()
+    max?:number
 }
 
 export class ListingResponseDto {
@@ -422,28 +382,25 @@ export class ListingResponseDto {
   @ApiProperty({ enum: ListingStatus })
   status: ListingStatus;
 
-  @ApiProperty({ type: () => LocationDto })
-  location: LocationDto;
+    @ApiProperty({ type: () => LocationDto })
+    location: LocationDto;
 
-  @ApiProperty({ type: () => ContactDto })
-  contact: ContactDto;
 
-  @ApiProperty({ type: () => UserResponseDto })
-  seller: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
+    @ApiProperty({ type: () => ContactDto }) // Use ContactDto
+    contact: ContactDto;
 
-  @ApiProperty({ type: [ImageDto] })
-  images: ImageDto[];
 
-  @ApiProperty({ type: [Object] })
-  categories: {
-    id: string;
-    name: string;
-  }[];
+  @ApiProperty({ type: () => UserResponseDto }) // Use UserResponseDto
+  seller: UserResponseDto;
+
+    @ApiProperty({ type: [ImageDto] }) // Use ImageDto
+    images: ImageDto[];
+
+    @ApiProperty({ type: [Object] })
+    categories: {
+        id: string;
+        name: string;
+    }[];
 
   @ApiPropertyOptional()
   metadata?: Record<string, any>;
@@ -451,14 +408,24 @@ export class ListingResponseDto {
   @ApiProperty()
   views: number;
 
-  @ApiProperty()
-  favorites: number;
+    @ApiPropertyOptional({
+      type: Number,
+      description: 'Number of favorites'
+  })
+  @IsOptional() // Optional
+  favorites?: number; // Use number
 
   @ApiProperty()
   isActive: boolean;
 
   @ApiProperty()
   isFeatured: boolean;
+
+  @ApiProperty()
+  isVerified: boolean;
+
+  @ApiProperty()
+  isUrgent: boolean;
 
   @ApiPropertyOptional()
   publishedAt?: Date;
@@ -471,5 +438,44 @@ export class ListingResponseDto {
 
   @ApiProperty()
   updatedAt: Date;
-} 
 
+  @ApiPropertyOptional({ description: 'Relevance score' })
+  @IsOptional()
+  @IsNumber()
+  relevanceScore?: number;
+}
+
+
+export class ContactDto {
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    name?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    @IsEmail()
+    email?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    @IsPhoneNumber()
+    phone?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    whatsapp?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsBoolean()
+    showEmail?: boolean;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsBoolean()
+    showPhone?: boolean;
+}
