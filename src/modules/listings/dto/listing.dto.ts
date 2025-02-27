@@ -49,6 +49,26 @@ export class ImageDto {
   @IsOptional()
   @IsString()
   thumbnail?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  key: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  bucket: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  mimeType: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  listingId: string;
 }
 
 export class LocationDto {

@@ -22,7 +22,7 @@ import {
   ListingResponseDto,
 } from './dto/listing.dto';
 import { SearchResponse, SearchHit } from '@elastic/elasticsearch/lib/api/types';
-import { ImageDto } from './dto/listing.dto';
+import { ImageDto } from '../images/dto/image.dto';
 
 @Injectable()
 export class ListingsService {
@@ -123,6 +123,17 @@ export class ListingsService {
                 throw new BadRequestException('El precio es requerido');
             }
 
+            if (quickListingDto.location) {
+                const address = quickListingDto.location.address;
+                const city = quickListingDto.location.city;
+                const state = quickListingDto.location.state;
+                const country = quickListingDto.location.country;
+                const coordinates = quickListingDto.location.coordinates;
+                // Use these variables as needed
+            } else {
+                throw new BadRequestException('Location is required');
+            }
+
             let uploadedImages: ImageDto[] = [];
             if (quickListingDto.images && quickListingDto.images.length > 0) {
                 try {
@@ -131,6 +142,10 @@ export class ListingsService {
                             const url = await this.storageService.uploadImage(imageDto);
                             return {
                                 url,
+                                key: imageDto.key,
+                                bucket: imageDto.bucket,
+                                mimeType: imageDto.mimeType,
+                                listingId: imageDto.listingId,
                                 order: index,
                                 alt: imageDto.alt || '',
                             };
@@ -158,7 +173,13 @@ export class ListingsService {
                 type: quickListingDto.type,
                 categories: categories, //  usa categories, la relación en la entidad.
                 contact: quickListingDto.contact,
-                location: quickListingDto.location,
+                location: {
+                    address: quickListingDto.location?.address,
+                    city: quickListingDto.location?.city,
+                    state: quickListingDto.location?.state,
+                    country: quickListingDto.location?.country,
+                    coordinates: quickListingDto.location?.coordinates,
+                },
                 price: quickListingDto.price,
                 images: uploadedImages,
                 status: ListingStatus.ACTIVE,
@@ -328,8 +349,7 @@ export class ListingsService {
                         }
                     }
                 });
-            const listingIds = hits.hits.map((hit: SearchHit<Listing>) => hit._source!.id); //  SearchHit<Listing>
-
+            const listingIds = hits.hits.map((hit: SearchHit<Listing>) => hit._source!.id);
             if(listingIds.length === 0) {
                 return {
                     items: [],

@@ -11,6 +11,7 @@ import { User } from '../users/entities/user.entity';
 import { CreateFavoriteDto } from './dto/favorite.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FavoriteResponseDto } from './dto/favorite.dto'
+import { ImageDto } from '../listings/dto/listing.dto';
 
 @Injectable()
 export class FavoritesService {
@@ -99,6 +100,15 @@ export class FavoritesService {
                 showEmail: favorite.listing.contact.showEmail ?? false,
                 showPhone: favorite.listing.contact.showPhone ?? false,
             },
+            images: favorite.listing.images.map((image: ImageDto) => ({
+                url: image.url,
+                key: image.key,
+                bucket: image.bucket,
+                mimeType: image.mimeType,
+                listingId: image.listingId,
+                order: image.order,
+                alt: image.alt,
+            })),
         },
         createdAt: favorite.createdAt
         }

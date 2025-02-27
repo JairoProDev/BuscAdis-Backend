@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
 export class ImageDto {
@@ -35,6 +35,16 @@ export class ImageDto {
   @ApiProperty()
   @IsNotEmpty()
   order: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  alt?: string;
 }
 
 export class CreateImageDto {

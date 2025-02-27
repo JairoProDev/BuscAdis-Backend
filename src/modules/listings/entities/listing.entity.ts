@@ -20,6 +20,7 @@ import { Message } from '../../messages/entities/message.entity';
 import { Report } from '../../reports/entities/report.entity';
 import { Favorite } from '../../favorites/entities/favorite.entity';
 import { slugify } from '../../../common/utils/slugify';
+import { ImageDto } from '../../images/dto/image.dto';
 
 export enum ListingType {
   JOB = 'job',
@@ -97,12 +98,8 @@ export class Listing {
   @Column('jsonb', { nullable: true })
   attributes: Record<string, any>;
 
-  @Column('jsonb', { default: [] })
-  images: Array<{
-    url: string;
-    alt?: string;
-    order: number;
-  }> = [];
+  @OneToMany(() => Image, (image) => image.listing)
+  images: ImageDto[];
 
   @Column({ type: 'jsonb', nullable: true })
   location: {

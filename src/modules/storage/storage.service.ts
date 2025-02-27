@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3 } from 'aws-sdk';
 import { v4 as uuid } from 'uuid';
-import { ImageDto } from '../listings/dto/listing.dto';
+import { ImageDto } from '../images/dto/image.dto';
 
 @Injectable()
 export class StorageService {
