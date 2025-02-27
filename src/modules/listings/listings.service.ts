@@ -24,6 +24,10 @@ import {
 import { SearchResponse, SearchHit } from '@elastic/elasticsearch/lib/api/types';
 import { ImageDto } from '../images/dto/image.dto';
 
+type ListingSearchHit = {
+  _source?: Listing; // Make _source optional
+};
+
 @Injectable()
 export class ListingsService {
   private readonly indexName = 'listings';
@@ -336,8 +340,8 @@ export class ListingsService {
         };
 
         if (searchDto.query) {
-            try{
-                const { hits } = await this.elasticsearchService.search<SearchResponse<Listing>>({ // TIPADO CORRECTO
+            try {
+                const { hits } = await this.elasticsearchService.search<SearchResponse<Listing>>({
                     index: this.indexName,
                     body: {
                         query: {
@@ -349,18 +353,21 @@ export class ListingsService {
                         }
                     }
                 });
-            const listingIds = hits.hits.map((hit: SearchHit<Listing>) => hit._source!.id);
-            if(listingIds.length === 0) {
-                return {
-                    items: [],
-                    total: 0,
-                    page: searchDto.page ?? 1,
-                    limit: searchDto.limit ?? 10,
-                    pages: 0,
-                };
-            }
-                where.id = In(listingIds);
 
+                const listingIds = hits.hits
+                    .filter(hit => hit._source !== undefined)
+                    .map(hit => hit._source!.id);
+
+                if (listingIds.length === 0) {
+                    return {
+                        items: [],
+                        total: 0,
+                        page: searchDto.page ?? 1,
+                        limit: searchDto.limit ?? 10,
+                        pages: 0,
+                    };
+                }
+                where.id = In(listingIds);
             } catch (error) {
                 this.logger.error(`Error searching in Elasticsearch: ${(error as Error).message}`, (error as Error).stack);
             }
@@ -372,19 +379,17 @@ export class ListingsService {
         }
 
         // location
-       if (searchDto.location?.latitude && searchDto.location?.longitude)
-       {
+       if (searchDto.location?.latitude && searchDto.location?.longitude) {
            const lat = searchDto.location.latitude;
            const lon = searchDto.location.longitude;
-           const range = 0.1; //
+           const range = 0.1;
 
            where.location = {
                coordinates: {
-                  lat: Between(lat - range, lat + range),
-                  lon: Between(lon - range, lon + range)
-                }
-
-           } as Partial<FindOptionsWhere<Listing>>; //Usar Partial
+                   lat: Between(lat - range, lat + range),
+                   lon: Between(lon - range, lon + range),
+               },
+           } as FindOptionsWhere<Listing>; // Ensure this matches the expected structure
        }
 
 
