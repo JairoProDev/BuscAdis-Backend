@@ -95,8 +95,11 @@ export class ListingsController {
     const searchDto: SearchListingDto = {
       limit: 100,
     };
+    
     const listings = await this.listingsService.search(searchDto);
-    return listings;
+    
+    // Return only the items array
+    return listings.items; // Ensure this returns the correct array
   }
 
   @Get(':id')
