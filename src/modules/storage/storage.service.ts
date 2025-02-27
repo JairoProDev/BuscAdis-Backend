@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3 } from 'aws-sdk';
 import { v4 as uuid } from 'uuid';
+import { ImageDto } from '../listings/dto/listing.dto';
 
 @Injectable()
 export class StorageService {
@@ -52,6 +53,26 @@ export class StorageService {
     } catch (error) {
       const err = error as Error;
       this.logger.error(`Failed to delete file: ${err.message}`, err.stack);
+      throw error;
+    }
+  }
+
+  async uploadImage(imageDto: ImageDto): Promise<string> {
+    try {
+      const fileName = `${uuid()}-${imageDto.url.split('/').pop()}`;
+      const buffer = Buffer.from(imageDto.url, 'base64'); // Assuming the URL is a base64 string
+
+      await this.s3.upload({
+        Bucket: this.bucketName,
+        Key: fileName,
+        Body: buffer,
+        ContentType: imageDto.mimeType,
+        ACL: 'public-read',
+      }).promise();
+
+      return `https://${this.bucketName}.s3.amazonaws.com/${fileName}`;
+    } catch (error) {
+      this.logger.error('Error uploading image:', error);
       throw error;
     }
   }
