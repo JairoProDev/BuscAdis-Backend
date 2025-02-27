@@ -354,8 +354,9 @@ export class ListingsService {
                     }
                 });
 
-                const listingIds = hits.hits
-                    .filter(hit => hit._source)
+                // Use unknown to bypass type checking
+                const listingIds = (hits.hits as unknown as SearchHit<Listing>[])
+                    .filter(hit => hit._source !== undefined)
                     .map(hit => hit._source!.id);
 
                 if (listingIds.length === 0) {
@@ -487,6 +488,13 @@ export class ListingsService {
                 alt: image.alt,
             })) : [],
             favorites: listing.favorites?.length || 0,
+            contact: {
+                whatsapp: listing.contact.whatsapp || '',
+                email: listing.contact.email,
+                phone: listing.contact.phone,
+                showEmail: listing.contact.showEmail,
+                showPhone: listing.contact.showPhone,
+            },
         };
     }
 }

@@ -97,6 +97,7 @@ export class FavoritesService {
             ...favorite.listing,
             favorites: favorite.listing.favorites ? favorite.listing.favorites.length : 0,
             contact: {
+                whatsapp: favorite.listing.contact.whatsapp || '',
                 showEmail: favorite.listing.contact.showEmail ?? false,
                 showPhone: favorite.listing.contact.showPhone ?? false,
             },

@@ -21,6 +21,7 @@ import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ListingType, ListingStatus, PriceType } from '../entities/listing.entity';
 import { UserResponseDto } from 'src/modules/users/dto/user.dto'; // Import UserResponseDto
+import { ContactDto } from './contact.dto';
 
 export class ImageDto {
   @ApiProperty()
@@ -123,7 +124,7 @@ export class QuickListingDto {
 
     @ApiProperty()
     @ValidateNested()
-    @Type(() => ContactDto) // Use ContactDto
+    @Type(() => ContactDto)
     @IsNotEmpty()
     contact: ContactDto;
 
@@ -404,7 +405,7 @@ export class ListingResponseDto {
     location: LocationDto;
 
 
-    @ApiProperty({ type: () => ContactDto }) // Use ContactDto
+    @ApiProperty({ type: () => ContactDto })
     contact: ContactDto;
 
 
@@ -461,39 +462,4 @@ export class ListingResponseDto {
   @IsOptional()
   @IsNumber()
   relevanceScore?: number;
-}
-
-
-export class ContactDto {
-    @ApiPropertyOptional()
-    @IsOptional()
-    @IsString()
-    name?: string;
-
-    @ApiPropertyOptional()
-    @IsOptional()
-    @IsString()
-    @IsEmail()
-    email?: string;
-
-    @ApiPropertyOptional()
-    @IsOptional()
-    @IsString()
-    @IsPhoneNumber()
-    phone?: string;
-
-    @ApiPropertyOptional()
-    @IsOptional()
-    @IsString()
-    whatsapp?: string;
-
-    @ApiPropertyOptional()
-    @IsOptional()
-    @IsBoolean()
-    showEmail?: boolean;
-
-    @ApiPropertyOptional()
-    @IsOptional()
-    @IsBoolean()
-    showPhone?: boolean;
 }
