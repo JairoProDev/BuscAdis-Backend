@@ -1,6 +1,42 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
+export class ImageDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  url: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  key: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  bucket: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  mimeType: string;
+
+  @ApiProperty()
+  @IsUUID()
+  @IsNotEmpty()
+  listingId: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  thumbnail?: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  order: number;
+}
+
 export class CreateImageDto {
   @ApiProperty()
   @IsString()

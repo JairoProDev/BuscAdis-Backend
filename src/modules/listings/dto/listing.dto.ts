@@ -114,9 +114,12 @@ export class QuickListingDto {
     location?: LocationDto;
 
 
-    @ApiPropertyOptional({ type: 'array', items: { type: 'string', format: 'binary' } })
+    @ApiProperty({ type: [ImageDto], required: false })
     @IsOptional()
-    images?: Express.Multer.File[]; // Correct type for file uploads
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ImageDto)
+    images?: ImageDto[];
 
 
     @ApiProperty({ type: [String] })
@@ -154,15 +157,12 @@ export class CreateListingDto extends QuickListingDto {
   @IsObject()
   attributes?: Record<string, any>;
 
-  @ApiProperty({
-    type: [ImageDto],
-    description: 'The images of the listing',
-  })
+  @ApiProperty({ type: [ImageDto], description: 'The images of the listing' })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ImageDto)
-  images?: ImageDto[] = []; // Correct ImageDto usage
+  images?: ImageDto[];
 
   @ApiProperty({ type: [String] })
   @IsNotEmpty()

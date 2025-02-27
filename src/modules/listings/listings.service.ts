@@ -23,6 +23,7 @@ import {
 } from './dto/listing.dto';
 import { SearchResponse, SearchHit } from '@elastic/elasticsearch/lib/api/types';
 import { ImageDto } from './dto/listing.dto';
+import { ImagesService } from '../images/images.service';
 
 @Injectable()
 export class ListingsService {
@@ -36,6 +37,7 @@ export class ListingsService {
     private readonly categoryRepository: Repository<Category>,
     private readonly elasticsearchService: ElasticsearchService,
     private readonly storageService: StorageService,
+    private readonly imagesService: ImagesService,
   ) {
     this.createIndex();
   }
@@ -124,26 +126,24 @@ export class ListingsService {
             }
 
             let uploadedImages: ImageDto[] = [];
-            //Verifica que la propiedad images exista.
             if (quickListingDto.images && quickListingDto.images.length > 0) {
                 try {
                     uploadedImages = await Promise.all(
-                      //Tipado correcto.
-                        quickListingDto.images.map(async (file: Express.Multer.File, index: number) => {
-                            const url = await this.storageService.uploadFile(file);
-                            return {
-                                url,
-                                order: index,
-                                alt: '',
-                            };
-                        }),
+                      quickListingDto.images.map(async (imageDto: ImageDto, index: number) => {
+                        const uploadedImage = await this.imagesService.uploadImage(imageDto);
+                        return {
+                          url: uploadedImage.url,
+                          key: uploadedImage.key,
+                          bucket: uploadedImage.bucket,
+                          mimeType: uploadedImage.mimeType,
+                          order: index,
+                          listingId: uploadedImage.listingId,
+                          thumbnail: uploadedImage.thumbnail,
+                        };
+                      }),
                     );
                 } catch (uploadError) {
-                    this.logger.error(
-                      'Error uploading images:',
-                      (uploadError as Error).message,
-                      (uploadError as Error).stack,
-                    );
+                    this.logger.error('Error uploading images:', (uploadError as Error).message, (uploadError as Error).stack);
                 }
             }
 

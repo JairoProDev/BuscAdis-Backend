@@ -6,6 +6,7 @@ import { S3 } from 'aws-sdk';
 import { ConfigService } from '@nestjs/config';
 import * as sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
+import { ImageDto } from './dto/image.dto';
 
 @Injectable()
 export class ImagesService {
@@ -26,18 +27,18 @@ export class ImagesService {
     this.bucketName = this.configService.get('AWS_S3_BUCKET_NAME') || '';
   }
 
-  async uploadImage(file: Express.Multer.File, order: number = 0): Promise<Image> {
+  async uploadImage(imageDto: ImageDto): Promise<Image> {
     try {
-      const key = `listings/${uuidv4()}-${file.originalname}`;
-      const thumbnailKey = `listings/thumbnails/${uuidv4()}-${file.originalname}`;
+      const key = `listings/${uuidv4()}-${imageDto.url.split('/').pop()}`;
+      const thumbnailKey = `listings/thumbnails/${uuidv4()}-${imageDto.url.split('/').pop()}`;
 
       // Process image and create thumbnail
-      const processedImage = await sharp(file.buffer)
+      const processedImage = await sharp(Buffer.from(imageDto.url, 'base64'))
         .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 80 })
         .toBuffer();
 
-      const thumbnail = await sharp(file.buffer)
+      const thumbnail = await sharp(Buffer.from(imageDto.url, 'base64'))
         .resize(300, 300, { fit: 'cover' })
         .jpeg({ quality: 60 })
         .toBuffer();
@@ -47,7 +48,7 @@ export class ImagesService {
         Bucket: this.bucketName,
         Key: key,
         Body: processedImage,
-        ContentType: file.mimetype,
+        ContentType: imageDto.mimeType,
         ACL: 'public-read',
       }).promise();
 
@@ -56,7 +57,7 @@ export class ImagesService {
         Bucket: this.bucketName,
         Key: thumbnailKey,
         Body: thumbnail,
-        ContentType: file.mimetype,
+        ContentType: imageDto.mimeType,
         ACL: 'public-read',
       }).promise();
 
@@ -64,9 +65,9 @@ export class ImagesService {
         url: `https://${this.bucketName}.s3.amazonaws.com/${key}`,
         key,
         bucket: this.bucketName,
-        mimeType: file.mimetype,
+        mimeType: imageDto.mimeType,
         thumbnail: `https://${this.bucketName}.s3.amazonaws.com/${thumbnailKey}`,
-        order,
+        order: imageDto.order,
       });
 
       return this.imageRepository.save(image);
