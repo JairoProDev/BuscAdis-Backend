@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, MoreThan, Like, FindOptionsWhere, Between, LessThanOrEqual, MoreThanOrEqual, Not } from 'typeorm';
+import { Repository, In, MoreThan, LessThan, Like, FindOptionsWhere, Between, LessThanOrEqual, MoreThanOrEqual, Not } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import slugify from 'slugify';
 import { Listing, ListingStatus } from './entities/listing.entity';
@@ -355,7 +355,7 @@ export class ListingsService {
                 });
 
                 const listingIds = hits.hits
-                    .filter(hit => hit._source !== undefined)
+                    .filter(hit => hit._source)
                     .map(hit => hit._source!.id);
 
                 if (listingIds.length === 0) {
@@ -373,25 +373,20 @@ export class ListingsService {
             }
         }
 
-        // category en singular.
         if (searchDto.categoryId) {
-          where.category = { id: searchDto.categoryId } as any;
+            where.category = { id: searchDto.categoryId } as any;
         }
 
-        // location
-       if (searchDto.location?.latitude && searchDto.location?.longitude) {
-           const lat = searchDto.location.latitude;
-           const lon = searchDto.location.longitude;
-           const range = 0.1;
+        if (searchDto.location?.latitude && searchDto.location?.longitude) {
+            const lat = searchDto.location.latitude;
+            const lon = searchDto.location.longitude;
+            const range = 0.1;
 
-           where.location = {
-               coordinates: {
-                   lat: Between(lat - range, lat + range),
-                   lon: Between(lon - range, lon + range),
-               },
-           } as FindOptionsWhere<Listing>; // Ensure this matches the expected structure
-       }
-
+            where.location = {
+                lat: MoreThan(lat - range),
+                lon: LessThan(lat + range),
+            } as any;
+        }
 
         if (searchDto.priceRange?.min || searchDto.priceRange?.max) {
             if (searchDto.priceRange.min && searchDto.priceRange.max) {
@@ -410,13 +405,13 @@ export class ListingsService {
                 isUrgent: 'DESC',
                 createdAt: 'DESC',
             },
-            skip: (searchDto.page ?? 1 - 1) * (searchDto.limit ?? 10), // Valores por defecto
-            take: searchDto.limit ?? 10, // Valor por defecto
-            relations: ['seller', 'categories'], // Carga las relaciones
+            skip: (searchDto.page ?? 1 - 1) * (searchDto.limit ?? 10),
+            take: searchDto.limit ?? 10,
+            relations: ['seller', 'categories'],
         });
 
         return {
-            items: items.map(listing => this.mapToResponseDto(listing)), //  mapToResponseDto
+            items: items.map(listing => this.mapToResponseDto(listing)),
             total,
             page: searchDto.page ?? 1,
             limit: searchDto.limit ?? 10,
@@ -425,7 +420,6 @@ export class ListingsService {
     }
 
   private async indexListing(listing: Listing) {
-    //  undefined si no hay coordenadas
     const coordinates = listing.location?.coordinates
       ? {
           lat: listing.location.coordinates.lat,
@@ -442,9 +436,9 @@ export class ListingsService {
       price: listing.price,
       priceType: listing.priceType,
       status: listing.status,
-      condition: listing.condition, //  condition
-      location: listing.location ? { coordinates } : undefined, //  coordinates
-      categoryIds: listing.categories?.map((cat:Category) => cat.id) || [], //  categoryIds
+      condition: listing.condition,
+      location: listing.location ? { coordinates } : undefined,
+      categoryIds: listing.categories?.map((cat:Category) => cat.id) || [],
       sellerId: listing.seller.id,
       isActive: listing.isActive,
       isFeatured: listing.isFeatured,
@@ -457,7 +451,7 @@ export class ListingsService {
 
     await this.elasticsearchService.index({
       index: this.indexName,
-      id: listing.id,  // Use the listing ID
+      id: listing.id,
       body: document,
     });
   }
