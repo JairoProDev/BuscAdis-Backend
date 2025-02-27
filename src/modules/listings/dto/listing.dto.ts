@@ -390,7 +390,7 @@ export class ListingResponseDto {
     contact: ContactDto;
 
 
-  @ApiProperty({ type: () => UserResponseDto }) // Use UserResponseDto
+  @ApiProperty({ type: () => UserResponseDto })
   seller: UserResponseDto;
 
     @ApiProperty({ type: [ImageDto] }) // Use ImageDto

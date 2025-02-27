@@ -457,15 +457,17 @@ export class ListingsService {
                 provider: seller.provider,
                 isActive: seller.isActive,
                 createdAt: seller.createdAt,
+                updatedAt: seller.updatedAt,
+                isVerified: seller.isVerified,
             },
             categories: categories ? categories.map(category => ({
                 id: category.id,
                 name: category.name,
-            })) : [], // Avoid null reference
-            images: images ? images.map(image => ({  //  ImageDto
+            })) : [],
+            images: images ? images.map(image => ({
                 url: image.url,
                 alt: image.alt,
-                order: image.order
+                order: image.order,
             })) : [],
             favorites: listing.favorites?.length || 0,
         };
