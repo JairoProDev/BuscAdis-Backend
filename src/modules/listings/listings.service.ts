@@ -124,26 +124,20 @@ export class ListingsService {
             }
 
             let uploadedImages: ImageDto[] = [];
-            //Verifica que la propiedad images exista.
             if (quickListingDto.images && quickListingDto.images.length > 0) {
                 try {
                     uploadedImages = await Promise.all(
-                      //Tipado correcto.
-                        quickListingDto.images.map(async (file: Express.Multer.File, index: number) => {
-                            const url = await this.storageService.uploadFile(file);
+                        quickListingDto.images.map(async (imageDto: ImageDto, index: number) => {
+                            const url = await this.storageService.uploadImage(imageDto);
                             return {
                                 url,
                                 order: index,
-                                alt: '',
+                                alt: imageDto.alt || '',
                             };
                         }),
                     );
                 } catch (uploadError) {
-                    this.logger.error(
-                      'Error uploading images:',
-                      (uploadError as Error).message,
-                      (uploadError as Error).stack,
-                    );
+                    this.logger.error('Error uploading images:', (uploadError as Error).message, (uploadError as Error).stack);
                 }
             }
 

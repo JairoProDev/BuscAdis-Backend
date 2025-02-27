@@ -117,8 +117,6 @@ export class QuickListingDto {
     @ApiProperty({ type: [ImageDto], required: false })
     @IsOptional()
     @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => ImageDto)
     images?: ImageDto[];
 
 
