@@ -480,8 +480,12 @@ export class ListingsService {
             })) : [],
             images: images ? images.map(image => ({
                 url: image.url,
-                alt: image.alt,
+                key: image.key,
+                bucket: image.bucket,
+                mimeType: image.mimeType,
+                listingId: image.listingId,
                 order: image.order,
+                alt: image.alt,
             })) : [],
             favorites: listing.favorites?.length || 0,
         };
