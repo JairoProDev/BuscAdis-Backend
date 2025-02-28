@@ -9,6 +9,7 @@ import {
   IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { Listing } from '../../listings/entities/listing.entity';
 
 export enum SortOption {
   PRICE_ASC = 'price_asc',
@@ -97,9 +98,6 @@ export class SearchDto {
 
 export class PriceStatsDto {
   @ApiProperty()
-  count: number;
-
-  @ApiProperty()
   min: number;
 
   @ApiProperty()
@@ -110,22 +108,25 @@ export class PriceStatsDto {
 
   @ApiProperty()
   sum: number;
+
+  @ApiProperty()
+  count: number;
 }
 
 export class CategoryBucketDto {
   @ApiProperty()
-  key: string;
+  name: string;
 
   @ApiProperty()
-  doc_count: number;
+  count: number;
 }
 
 export class ConditionBucketDto {
   @ApiProperty()
-  key: string;
+  condition: string;
 
   @ApiProperty()
-  doc_count: number;
+  count: number;
 }
 
 export class SearchAggregationsDto {
@@ -140,8 +141,8 @@ export class SearchAggregationsDto {
 }
 
 export class SearchResponseDto {
-  @ApiProperty({ type: [Object] })
-  items: any[];
+  @ApiProperty({ type: [Listing] })
+  items: Listing[];
 
   @ApiProperty()
   total: number;
@@ -151,6 +152,9 @@ export class SearchResponseDto {
 
   @ApiProperty()
   limit: number;
+
+  @ApiProperty()
+  pages: number;
 
   @ApiProperty()
   aggregations: SearchAggregationsDto;

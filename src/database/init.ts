@@ -2,7 +2,6 @@ import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../app.module';
-import { initializeElasticsearch } from './elasticsearch/init';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -14,11 +13,6 @@ async function bootstrap() {
         console.log('Running database migrations...');
         await dataSource.runMigrations();
         console.log('Database migrations completed successfully');
-
-        // Initialize Elasticsearch
-        console.log('Initializing Elasticsearch...');
-        await initializeElasticsearch(configService);
-        console.log('Elasticsearch initialization completed successfully');
 
         await app.close();
         process.exit(0);

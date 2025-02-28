@@ -17,13 +17,7 @@ export interface TermsAggregation {
   buckets: TermsBucket[];
 }
 
-export interface CategoryAggregation {
-  doc_count: number;
-  unique_categories: TermsAggregation;
-}
-
 export interface ListingAggregations {
   price_stats: StatsAggregation;
   conditions: TermsAggregation;
-  categories: CategoryAggregation;
 } 

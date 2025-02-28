@@ -6,11 +6,13 @@ import { Message } from './entities/message.entity';
 import { User } from '../users/entities/user.entity';
 import { Listing } from '../listings/entities/listing.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ListingsModule } from '../listings/listings.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Message, User, Listing]),
     NotificationsModule,
+    ListingsModule,
   ],
   controllers: [MessagesController],
   providers: [MessagesService],

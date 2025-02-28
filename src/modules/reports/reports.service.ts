@@ -80,6 +80,13 @@ export class ReportsService {
     await this.reportRepository.remove(report);
   }
 
+  async findPendingReports(): Promise<Report[]> {
+    return this.reportRepository.find({
+      where: { status: ReportStatus.PENDING },
+      relations: ['listing', 'reporter'],
+    });
+  }
+
   private mapToResponseDto(report: Report): ReportResponseDto {
     return {
       id: report.id,

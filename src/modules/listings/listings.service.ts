@@ -5,15 +5,16 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, MoreThan, LessThan, Like, FindOptionsWhere, Between, LessThanOrEqual, MoreThanOrEqual, Not } from 'typeorm';
-import { ElasticsearchService } from '@nestjs/elasticsearch';
-import slugify from 'slugify';
 import { Listing, ListingStatus } from './entities/listing.entity';
 import { User } from '../users/entities/user.entity';
 import { Category } from '../categories/entities/category.entity';
 import { StorageService } from '../storage/storage.service';
+import { ImagesService } from '../images/images.service';
 import {
   QuickListingDto,
   CreateListingDto,
@@ -21,16 +22,16 @@ import {
   SearchListingDto,
   ListingResponseDto,
 } from './dto/listing.dto';
-import { SearchResponse, SearchHit } from '@elastic/elasticsearch/lib/api/types';
+import { Cache } from 'cache-manager';
+import slugify from 'slugify';
 import { ImageDto } from '../images/dto/image.dto';
-
-type ListingSearchHit = {
-  _source?: Listing; // Make _source optional
-};
+import { ContactDto } from './dto/contact.dto';
+import { LocationDto } from './dto/location.dto';
+import { Image } from '../images/entities/image.entity';
+import { ListingStatus as ListingStatusType } from './types/listing.types';
 
 @Injectable()
 export class ListingsService {
-  private readonly indexName = 'listings';
   private readonly logger = new Logger(ListingsService.name);
 
   constructor(
@@ -38,179 +39,64 @@ export class ListingsService {
     private readonly listingRepository: Repository<Listing>,
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
-    private readonly elasticsearchService: ElasticsearchService,
     private readonly storageService: StorageService,
-  ) {
-    this.createIndex();
+    private readonly imagesService: ImagesService,
+    @Inject(CACHE_MANAGER)
+    private cacheManager: Cache,
+  ) {}
+
+  async initialize(): Promise<void> {
+    // Implement any initialization logic here
+    this.logger.log('ListingsService initialized');
   }
 
-  private async createIndex() {
+  async createQuick(quickListingDto: QuickListingDto, owner: User): Promise<Listing> {
     try {
-      const checkIndex = await this.elasticsearchService.indices.exists({
-        index: this.indexName,
+      // Validaciones de datos
+      this.validateListingData(quickListingDto);
+      
+      // Validar imágenes
+      if (quickListingDto.images) {
+        const images = quickListingDto.images.map(img => {
+          const image = new Image();
+          Object.assign(image, img);
+          return image;
+        });
+        await this.imagesService.validateImages(images);
+      }
+
+      // Validar categorías
+      const categories = await this.validateCategories(quickListingDto.categoryIds);
+
+      // Crear el listado
+      const listing = await this.listingRepository.save({
+        ...this.prepareListingData(quickListingDto, owner),
+        categories,
       });
 
-        if (!checkIndex) { // Removed .value
-        await this.elasticsearchService.indices.create({
-          index: this.indexName,
-          body: {
-            settings: {
-              analysis: {
-                analyzer: {
-                  spanish_analyzer: {
-                    type: 'standard',
-                    stopwords: '_spanish_'
-                  }
-                }
-              }
-            },
-            mappings: {
-              properties: {
-                id: { type: 'keyword' },
-                title: {
-                  type: 'text',
-                  analyzer: 'spanish_analyzer',
-                  fields: {
-                    keyword: { type: 'keyword' }
-                  }
-                },
-                slug: { type: 'keyword' },
-                description: {
-                  type: 'text',
-                  analyzer: 'spanish_analyzer'
-                },
-                type: { type: 'keyword' },
-                price: { type: 'float' },
-                priceType: { type: 'keyword' },
-                status: { type: 'keyword' },
-                condition: { type: 'keyword' }, // Make sure this exists in your entity
-                location: { type: 'geo_point' },
-                categories: { type: 'keyword' }, // Corrected relationship
-                seller: { type: 'keyword' },      // Corrected relationship
-                isActive: { type: 'boolean' },
-                isFeatured: { type: 'boolean' },
-                isVerified: { type: 'boolean' },
-                isUrgent: { type: 'boolean' },
-                createdAt: { type: 'date' },
-                updatedAt: { type: 'date' },
-                publishedAt: { type: 'date' },
-                expiresAt: { type: 'date' },
-              },
-            },
-          },
-        });
-        this.logger.log(`Created Elasticsearch index: ${this.indexName}`);
-      } else {
-        this.logger.log(`Elasticsearch index already exists: ${this.indexName}`);
-      }
+      return listing;
     } catch (error) {
-      this.logger.error(`Error creating Elasticsearch index: ${ (error as Error).message}`, (error as Error).stack);
+      this.handleListingError(error);
     }
   }
 
-    async createQuick( quickListingDto: QuickListingDto, owner: User,): Promise<Listing> {
-        try {
-            const slug = this.generateSlug(quickListingDto.title || '');
-
-            if (!quickListingDto.title) {
-                throw new BadRequestException('El título es requerido');
-            }
-            if (!quickListingDto.description) {
-                throw new BadRequestException('La descripción es requerida');
-            }
-            if (!quickListingDto.contact?.whatsapp) {
-                throw new BadRequestException('El número de WhatsApp es requerido');
-            }
-
-            //Verifica que price exista.
-            if (quickListingDto.price === undefined || quickListingDto.price === null) {
-                throw new BadRequestException('El precio es requerido');
-            }
-
-            if (quickListingDto.location) {
-                const address = quickListingDto.location.address;
-                const city = quickListingDto.location.city;
-                const state = quickListingDto.location.state;
-                const country = quickListingDto.location.country;
-                const coordinates = quickListingDto.location.coordinates;
-                // Use these variables as needed
-            } else {
-                throw new BadRequestException('Location is required');
-            }
-
-            let uploadedImages: ImageDto[] = [];
-            if (quickListingDto.images && quickListingDto.images.length > 0) {
-                try {
-                    uploadedImages = await Promise.all(
-                        quickListingDto.images.map(async (imageDto: ImageDto, index: number) => {
-                            const url = await this.storageService.uploadImage(imageDto);
-                            return {
-                                url,
-                                key: imageDto.key,
-                                bucket: imageDto.bucket,
-                                mimeType: imageDto.mimeType,
-                                listingId: imageDto.listingId,
-                                order: index,
-                                alt: imageDto.alt || '',
-                            };
-                        }),
-                    );
-                } catch (uploadError) {
-                    this.logger.error('Error uploading images:', (uploadError as Error).message, (uploadError as Error).stack);
-                }
-            }
-
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + 30);
-
-            //Verifica que la propiedad categoryIds exista
-            const categories = await this.categoryRepository.find({
-                where: { id: In(quickListingDto.categoryIds || []) },
-            });
-
-
-            const listing = await this.listingRepository.save({
-                title: quickListingDto.title,
-                description: quickListingDto.description,
-                slug,
-                seller: owner, //  relación correcta con User
-                type: quickListingDto.type,
-                categories: categories, //  usa categories, la relación en la entidad.
-                contact: quickListingDto.contact,
-                location: {
-                    address: quickListingDto.location?.address,
-                    city: quickListingDto.location?.city,
-                    state: quickListingDto.location?.state,
-                    country: quickListingDto.location?.country,
-                    coordinates: quickListingDto.location?.coordinates,
-                },
-                price: quickListingDto.price,
-                images: uploadedImages,
-                status: ListingStatus.ACTIVE,
-                publishedAt: new Date(),
-                expiresAt,
-                isActive: true,
-                isVerified: false,
-                isFeatured: false,
-                isUrgent: false,
-            });
-
-            // Indexar en Elasticsearch
-            try {
-                await this.indexListing(listing);
-            } catch (indexError) {
-                this.logger.error('Error indexing listing:', (indexError as Error).message, (indexError as Error).stack);
-            }
-            return listing;
-
-        } catch (error) {
-            this.logger.error('Error in createQuick:', (error as Error).message, (error as Error).stack);
-            if (error instanceof BadRequestException) {
-                throw error;
-            }
-            throw new BadRequestException((error as Error).message || 'Error al crear el anuncio.  Por favor intenta de nuevo.');
-        }
+  private validateListingData(data: QuickListingDto) {
+    if (!data.title?.trim()) {
+      throw new BadRequestException('El título es requerido');
     }
+    if (!data.description?.trim()) {
+      throw new BadRequestException('La descripción es requerida');
+    }
+    if (!data.contact?.whatsapp) {
+      throw new BadRequestException('El número de WhatsApp es requerido');
+    }
+    if (data.price === undefined || data.price === null) {
+      throw new BadRequestException('El precio es requerido');
+    }
+    if (!data.location) {
+      throw new BadRequestException('La ubicación es requerida');
+    }
+  }
 
   private generateSlug(title: string): string {
     const baseSlug = slugify(title, { lower: true, strict: true });
@@ -218,44 +104,45 @@ export class ListingsService {
     return `${baseSlug}-${timestamp}`;
   }
 
-    async create(createListingDto: CreateListingDto, seller: User): Promise<Listing> {
-        try {
-            const slug = this.generateSlug(createListingDto.title);
-            const categories = await this.categoryRepository.findByIds(createListingDto.categoryIds);
+  async create(createListingDto: CreateListingDto, seller: User): Promise<Listing> {
+    try {
+      const slug = this.generateSlug(createListingDto.title);
+      const categories = await this.categoryRepository.findByIds(createListingDto.categoryIds);
 
-            const listing = this.listingRepository.create({
-                ...createListingDto,
-                slug,
-                seller,  //  seller
-                categories, //  categories (plural)
-                status: createListingDto.status || ListingStatus.ACTIVE, //  status, con valor por defecto
-                publishedAt: new Date(),
-            });
+      const listing = this.listingRepository.create({
+        ...createListingDto,
+        slug,
+        seller,  //  seller
+        categories, //  categories (plural)
+        status: createListingDto.status || ListingStatusType.ACTIVE, //  status, con valor por defecto
+        publishedAt: new Date(),
+      });
 
-            const savedListing = await this.listingRepository.save(listing);
-            await this.indexListing(savedListing); //  indexación
-            return savedListing; // Devuelve la entidad
-
-        } catch (error) {
-            this.logger.error(`Error creating listing: ${(error as Error).message}`, (error as Error).stack);
-            throw new BadRequestException((error as Error).message || 'Error al crear el anuncio');
-        }
+      const savedListing = await this.listingRepository.save(listing);
+      return savedListing; // Devuelve la entidad
+    } catch (error) {
+      this.logger.error(`Error creating listing: ${(error as Error).message}`, (error as Error).stack);
+      throw new BadRequestException((error as Error).message || 'Error al crear el anuncio');
     }
+  }
 
   async findAll(): Promise<Listing[]> {
-    return this.listingRepository.find({
-      where: {
-        isActive: true,
-        status: ListingStatus.ACTIVE,
-        expiresAt: MoreThan(new Date()),
-      },
-      order: {
-        isFeatured: 'DESC',
-        isUrgent: 'DESC',
-        publishedAt: 'DESC',
-      },
-      relations: ['seller', 'categories'], // Carga las relaciones.  'categories' en plural
+    // Intentar obtener del caché
+    const cachedListings = await this.cacheManager.get<Listing[]>('all_listings');
+    if (cachedListings) {
+      return cachedListings;
+    }
+
+    // Si no está en caché, obtener de la base de datos
+    const listings = await this.listingRepository.find({
+      where: { isActive: true },
+      relations: ['seller', 'categories'],
     });
+
+    // Guardar en caché por 5 minutos
+    await this.cacheManager.set('all_listings', listings, 300);
+
+    return listings;
   }
 
   async findOne(id: string): Promise<Listing> {
@@ -270,7 +157,7 @@ export class ListingsService {
 
     if (
       !listing.isActive ||
-      listing.status !== ListingStatus.ACTIVE ||
+      listing.status !== ListingStatusType.ACTIVE ||
       listing.expiresAt < new Date()
     ) {
       throw new NotFoundException('Este anuncio ya no está disponible');
@@ -279,45 +166,39 @@ export class ListingsService {
     return listing;
   }
 
-    async update(id: string, updateListingDto: UpdateListingDto, user: User,): Promise<Listing> {
+  async update(id: string, updateListingDto: UpdateListingDto, user: User): Promise<Listing> {
+    const listing = await this.findOne(id);
 
-        const listing = await this.findOne(id);
-
-        if (listing.seller.id !== user.id) {
-            throw new ForbiddenException('Solo puedes actualizar tus propios anuncios');
-        }
-
-
-        if (updateListingDto.title) {
-           const newSlug = this.generateSlug(updateListingDto.title);
-            const existingListing = await this.listingRepository.findOne({
-                where: { slug: newSlug, id: Not(id) }, // Excluye el anuncio actual si tiene el mismo slug
-            });
-
-            if (existingListing) {
-                updateListingDto.slug = `${newSlug}-${Date.now()}`;
-            } else {
-                updateListingDto.slug = newSlug; // Usa el nuevo slug
-            }
-        }
-
-
-        if(updateListingDto.categoryIds){
-            const categories = await this.categoryRepository.findByIds(updateListingDto.categoryIds);
-            listing.categories = categories;
-        }
-
-        if (updateListingDto.status === ListingStatus.PUBLISHED && !listing.publishedAt) {
-            listing.publishedAt = new Date();
-        }
-
-
-        Object.assign(listing, updateListingDto);
-        const updatedListing = await this.listingRepository.save(listing);
-        await this.indexListing(updatedListing);
-
-        return updatedListing;
+    if (listing.seller.id !== user.id) {
+      throw new ForbiddenException('Solo puedes actualizar tus propios anuncios');
     }
+
+    if (updateListingDto.title) {
+      const newSlug = this.generateSlug(updateListingDto.title);
+      const existingListing = await this.listingRepository.findOne({
+        where: { slug: newSlug, id: Not(id) }, // Excluye el anuncio actual si tiene el mismo slug
+      });
+
+      if (existingListing) {
+        updateListingDto.slug = `${newSlug}-${Date.now()}`;
+      } else {
+        updateListingDto.slug = newSlug; // Use the new slug
+      }
+    }
+
+    if(updateListingDto.categoryIds){
+      const categories = await this.categoryRepository.findByIds(updateListingDto.categoryIds);
+      listing.categories = categories;
+    }
+
+    if (updateListingDto.status === ListingStatusType.PUBLISHED && !listing.publishedAt) {
+      listing.publishedAt = new Date();
+    }
+
+    Object.assign(listing, updateListingDto);
+    const updatedListing = await this.listingRepository.save(listing);
+    return updatedListing;
+  }
 
   async remove(id: string, user: User): Promise<void> {
     const listing = await this.findOne(id);
@@ -327,174 +208,152 @@ export class ListingsService {
     }
 
     await this.listingRepository.remove(listing);
-    await this.elasticsearchService.delete({
-      index: this.indexName,
-      id,
-    });
   }
 
-    async search(searchDto: SearchListingDto) {
-        const where: FindOptionsWhere<Listing> = {
-            isActive: true,
-            status: ListingStatus.ACTIVE,
-        };
+  async search(searchDto: SearchListingDto) {
+    try {
+      const queryBuilder = this.listingRepository.createQueryBuilder('listing')
+        .leftJoinAndSelect('listing.categories', 'category')
+        .leftJoinAndSelect('listing.seller', 'seller')
+        .where('listing.isActive = :isActive', { isActive: true });
 
-        if (searchDto.query) {
-            try {
-                const { hits } = await this.elasticsearchService.search<SearchResponse<Listing>>({
-                    index: this.indexName,
-                    body: {
-                        query: {
-                            multi_match: {
-                                query: searchDto.query,
-                                fields: ['title', 'description'],
-                                fuzziness: 'AUTO'
-                            }
-                        }
-                    }
-                });
+      // Aplicar filtros
+      if (searchDto.query) {
+        queryBuilder.andWhere(
+          '(LOWER(listing.title) LIKE LOWER(:query) OR LOWER(listing.description) LIKE LOWER(:query))',
+          { query: `%${searchDto.query}%` }
+        );
+      }
 
-                // Use unknown to bypass type checking
-                const listingIds = (hits.hits as unknown as SearchHit<Listing>[])
-                    .filter(hit => hit._source !== undefined)
-                    .map(hit => hit._source!.id);
+      // Agregar índices para mejorar el rendimiento
+      await this.listingRepository.query(`
+        CREATE INDEX IF NOT EXISTS idx_listing_title ON listings (title);
+        CREATE INDEX IF NOT EXISTS idx_listing_description ON listings (description);
+        CREATE INDEX IF NOT EXISTS idx_listing_price ON listings (price);
+      `);
 
-                if (listingIds.length === 0) {
-                    return {
-                        items: [],
-                        total: 0,
-                        page: searchDto.page ?? 1,
-                        limit: searchDto.limit ?? 10,
-                        pages: 0,
-                    };
-                }
-                where.id = In(listingIds);
-            } catch (error) {
-                this.logger.error(`Error searching in Elasticsearch: ${(error as Error).message}`, (error as Error).stack);
-            }
-        }
+      const [items, total] = await queryBuilder.getManyAndCount();
 
-        if (searchDto.categoryId) {
-            where.category = { id: searchDto.categoryId } as any;
-        }
-
-        if (searchDto.location?.latitude && searchDto.location?.longitude) {
-            const lat = searchDto.location.latitude;
-            const lon = searchDto.location.longitude;
-            const range = 0.1;
-
-            where.location = {
-                lat: MoreThan(lat - range),
-                lon: LessThan(lat + range),
-            } as any;
-        }
-
-        if (searchDto.priceRange?.min || searchDto.priceRange?.max) {
-            if (searchDto.priceRange.min && searchDto.priceRange.max) {
-                where.price = Between(searchDto.priceRange.min, searchDto.priceRange.max);
-            } else if (searchDto.priceRange.min) {
-                where.price = MoreThanOrEqual(searchDto.priceRange.min);
-            } else if (searchDto.priceRange.max) {
-                where.price = LessThanOrEqual(searchDto.priceRange.max);
-            }
-        }
-
-        const [items, total] = await this.listingRepository.findAndCount({
-            where,
-            order: {
-                isFeatured: 'DESC',
-                isUrgent: 'DESC',
-                createdAt: 'DESC',
-            },
-            skip: (searchDto.page ?? 1 - 1) * (searchDto.limit ?? 10),
-            take: searchDto.limit ?? 10,
-            relations: ['seller', 'categories'],
-        });
-
-        return {
-            items: items.map(listing => this.mapToResponseDto(listing)),
-            total,
-            page: searchDto.page ?? 1,
-            limit: searchDto.limit ?? 10,
-            pages: Math.ceil(total / (searchDto.limit ?? 10)),
-        };
+      return {
+        items: items.map(item => this.mapToResponseDto(item)),
+        total,
+        page: searchDto.page || 1,
+        limit: searchDto.limit || 10,
+        pages: Math.ceil(total / (searchDto.limit || 10))
+      };
+    } catch (error) {
+      this.logger.error('Error in search:', error);
+      throw new BadRequestException('Error al buscar listados');
     }
+  }
 
-  private async indexListing(listing: Listing) {
-    const coordinates = listing.location?.coordinates
-      ? {
-          lat: listing.location.coordinates.lat,
-          lon: listing.location.coordinates.lon,
-        }
-      : undefined;
+  mapToResponseDto(listing: Listing): ListingResponseDto {
+    const { seller, categories, images, ...listingData } = listing;
 
-    const document = {
-      id: listing.id,
-      title: listing.title,
-      slug: listing.slug,
-      description: listing.description,
-      type: listing.type,
-      price: listing.price,
-      priceType: listing.priceType,
-      status: listing.status,
-      condition: listing.condition,
-      location: listing.location ? { coordinates } : undefined,
-      categoryIds: listing.categories?.map((cat:Category) => cat.id) || [],
-      sellerId: listing.seller.id,
-      isActive: listing.isActive,
-      isFeatured: listing.isFeatured,
-      isVerified: listing.isVerified,
-      isUrgent: listing.isUrgent,
-      createdAt: listing.createdAt,
-      publishedAt: listing.publishedAt,
-      expiresAt: listing.expiresAt,
+    return {
+      ...listingData,
+      seller: {
+        id: seller.id,
+        firstName: seller.firstName,
+        lastName: seller.lastName,
+        email: seller.email,
+        role: seller.role,
+        provider: seller.provider,
+        isActive: seller.isActive,
+        createdAt: seller.createdAt,
+        updatedAt: seller.updatedAt,
+        isVerified: seller.isVerified,
+      },
+      categories: categories ? categories.map(category => ({
+        id: category.id,
+        name: category.name,
+      })) : [],
+      images: images ? images.map(image => ({
+        url: image.url,
+        key: image.key,
+        bucket: image.bucket,
+        mimeType: image.mimeType,
+        listingId: image.listingId,
+        order: image.order,
+        alt: image.alt,
+      })) : [],
+      favorites: listing.favorites || 0,
+      contact: {
+        whatsapp: listing.contact.whatsapp || '',
+        email: listing.contact.email,
+        phone: listing.contact.phone,
+        showEmail: listing.contact.showEmail,
+        showPhone: listing.contact.showPhone,
+      },
     };
-
-    await this.elasticsearchService.index({
-      index: this.indexName,
-      id: listing.id,
-      body: document,
-    });
   }
 
-    mapToResponseDto(listing: Listing): ListingResponseDto {
-        const { seller, categories, images, ...listingData } = listing;
+  async createListing(listingData: Partial<Listing>): Promise<Listing> {
+    const listing = this.listingRepository.create(listingData);
+    return this.listingRepository.save(listing);
+  }
 
-        return {
-            ...listingData,
-            seller: {
-                id: seller.id,
-                firstName: seller.firstName,
-                lastName: seller.lastName,
-                email: seller.email,
-                role: seller.role,
-                provider: seller.provider,
-                isActive: seller.isActive,
-                createdAt: seller.createdAt,
-                updatedAt: seller.updatedAt,
-                isVerified: seller.isVerified,
-            },
-            categories: categories ? categories.map(category => ({
-                id: category.id,
-                name: category.name,
-            })) : [],
-            images: images ? images.map(image => ({
-                url: image.url,
-                key: image.key,
-                bucket: image.bucket,
-                mimeType: image.mimeType,
-                listingId: image.listingId,
-                order: image.order,
-                alt: image.alt,
-            })) : [],
-            favorites: listing.favorites?.length || 0,
-            contact: {
-                whatsapp: listing.contact.whatsapp || '',
-                email: listing.contact.email,
-                phone: listing.contact.phone,
-                showEmail: listing.contact.showEmail,
-                showPhone: listing.contact.showPhone,
-            },
-        };
+  async searchListings(query: string): Promise<Listing[]> {
+    return this.listingRepository.createQueryBuilder('listing')
+      .where('listing.title ILIKE :query OR listing.description ILIKE :query', { query: `%${query}%` })
+      .getMany();
+  }
+
+  private async validateImages(images?: ImageDto[]): Promise<void> {
+    if (!images || !Array.isArray(images)) {
+      return;
     }
+    // Validar cada imagen
+    for (const image of images) {
+      if (!image.mimeType || !['image/jpeg', 'image/png', 'image/webp'].includes(image.mimeType)) {
+        throw new BadRequestException('Formato de imagen no válido');
+      }
+      if (!image.alt) {
+        image.alt = ''; // Asignar un valor por defecto si no se proporciona
+      }
+    }
+  }
+
+  private async validateCategories(categoryIds?: string[]): Promise<Category[]> {
+    if (!categoryIds || !Array.isArray(categoryIds)) {
+      return [];
+    }
+    
+    const categories = await this.categoryRepository.findByIds(categoryIds);
+    if (categories.length !== categoryIds.length) {
+      throw new BadRequestException('Una o más categorías no existen');
+    }
+    return categories;
+  }
+
+  private prepareListingData(dto: QuickListingDto, owner: User): Partial<Listing> {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    return {
+      title: dto.title,
+      description: dto.description,
+      slug: this.generateSlug(dto.title),
+      seller: owner,
+      type: dto.type,
+      contact: dto.contact,
+      location: dto.location,
+      price: dto.price,
+      status: ListingStatusType.ACTIVE,
+      publishedAt: new Date(),
+      expiresAt,
+      isActive: true,
+      isVerified: false,
+      isFeatured: false,
+      isUrgent: false,
+    };
+  }
+
+  private handleListingError(error: any): never {
+    this.logger.error('Error in listing operation:', error);
+    if (error instanceof BadRequestException) {
+      throw error;
+    }
+    throw new BadRequestException(error.message || 'Error en la operación');
+  }
 }

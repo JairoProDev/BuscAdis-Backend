@@ -1,27 +1,27 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ContactDto {
     @ApiProperty()
     @IsString()
-    @IsOptional()
+    @IsNotEmpty()
     whatsapp: string;
 
     @ApiPropertyOptional()
-    @IsOptional()
     @IsString()
+    @IsOptional()
     email?: string;
 
     @ApiPropertyOptional()
-    @IsOptional()
     @IsString()
+    @IsOptional()
     phone?: string;
 
-    @ApiPropertyOptional()
-    @IsOptional()
-    showEmail?: boolean;
+    @ApiProperty()
+    @IsBoolean()
+    showEmail: boolean;
 
-    @ApiPropertyOptional()
-    @IsOptional()
-    showPhone?: boolean;
+    @ApiProperty()
+    @IsBoolean()
+    showPhone: boolean;
 }

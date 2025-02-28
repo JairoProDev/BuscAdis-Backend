@@ -22,137 +22,54 @@ import { Type } from 'class-transformer';
 import { ListingType, ListingStatus, PriceType } from '../entities/listing.entity';
 import { UserResponseDto } from 'src/modules/users/dto/user.dto'; // Import UserResponseDto
 import { ContactDto } from './contact.dto';
+import { ImageDto } from '../../images/dto/image.dto';
+import { LocationDto } from './location.dto';
 
-export class ImageDto {
+export class QuickListingDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  url: string;
+  title: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty()
   @IsString()
-  alt?: string;
+  @IsNotEmpty()
+  description: string;
+
+  @ApiProperty({ enum: ListingType })
+  @IsEnum(ListingType)
+  @IsNotEmpty()
+  type: ListingType;
+
+  @ApiProperty({ type: [ImageDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ImageDto)
+  images: ImageDto[];
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds: string[];
 
   @ApiProperty()
   @IsNumber()
+  price: number;
+
+  @ApiProperty({ enum: PriceType })
+  @IsEnum(PriceType)
   @IsNotEmpty()
-  @Min(0)
-  order: number;
-
-  // Optional ID and thumbnail
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  id?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  thumbnail?: string;
+  priceType: PriceType;
 
   @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  key: string;
+  @Type(() => ContactDto)
+  @ValidateNested()
+  contact: ContactDto;
 
   @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  bucket: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  mimeType: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  listingId: string;
-}
-
-export class LocationDto {
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  address: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  city: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  state: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  country: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsObject()
-  coordinates?: {
-    lat: number;
-    lon: number;
-  };
-}
-
-
-// DTO for quick listing creation
-export class QuickListingDto {
-    @ApiProperty({ example: 'Software Developer Position' })
-    @IsString()
-    @IsNotEmpty()
-    @MinLength(5)
-    title: string;
-
-    @ApiProperty({ example: 'Looking for a full-stack developer...' })
-    @IsString()
-    @IsNotEmpty()
-    @MinLength(20)
-    description: string;
-
-    @ApiProperty({ enum: ListingType })
-    @IsEnum(ListingType)
-    @IsNotEmpty()
-    type: ListingType;
-
-    @ApiProperty()
-    @ValidateNested()
-    @Type(() => ContactDto)
-    @IsNotEmpty()
-    contact: ContactDto;
-
-    @ApiPropertyOptional()
-    @IsOptional()
-    @ValidateNested()
-    @Type(() => LocationDto) // Use LocationDto
-    location?: LocationDto;
-
-
-    @ApiProperty({ type: [ImageDto], required: false })
-    @IsOptional()
-    @IsArray()
-    images?: ImageDto[];
-
-
-    @ApiProperty({ type: [String] })
-    @IsOptional()
-    @IsArray()
-    @IsUUID(undefined, { each: true })
-    @ArrayMinSize(1)
-    categoryIds?: string[];
-
-    @ApiProperty()
-    @IsNumber()
-    @IsNotEmpty()
-    @Min(0)
-    price: number;
+  @Type(() => LocationDto)
+  @ValidateNested()
+  location: LocationDto;
 }
 
 // DTO for advanced listing creation
@@ -177,11 +94,10 @@ export class CreateListingDto extends QuickListingDto {
   attributes?: Record<string, any>;
 
   @ApiProperty({ type: [ImageDto], description: 'The images of the listing' })
-  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ImageDto)
-  images?: ImageDto[];
+  images: ImageDto[];
 
   @ApiProperty({ type: [String] })
   @IsNotEmpty()
@@ -200,14 +116,14 @@ export class CreateListingDto extends QuickListingDto {
   @IsBoolean()
   isUrgent?: boolean;
 
-    @ApiProperty({
-        enum: ListingStatus,
-        default: ListingStatus.ACTIVE,
-        description: 'The status of the listing'
-    })
-    @IsEnum(ListingStatus)
-    @IsOptional() // Status is optional, with a default
-    status?: ListingStatus = ListingStatus.ACTIVE;
+  @ApiProperty({
+    enum: ListingStatus,
+    default: ListingStatus.ACTIVE,
+    description: 'The status of the listing'
+  })
+  @IsEnum(ListingStatus)
+  @IsOptional()
+  status?: ListingStatus = ListingStatus.ACTIVE;
 
   @ApiProperty({
     description: 'The location of the listing',
@@ -245,11 +161,10 @@ export class SearchListingDto {
   @IsUUID()
   categoryId?: string;
 
-
-    @ApiPropertyOptional()
-    @IsOptional()
-    @IsUUID()
-    sellerId?: string; // Add sellerId
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  sellerId?: string; // Add sellerId
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -265,10 +180,10 @@ export class SearchListingDto {
   @Min(0)
   maxPrice?: number;
 
-    @ApiPropertyOptional({
-      type: Object,
-      description: 'Location filter',
-      example: { latitude: 40.7128, longitude: -74.0060, radius: 10 }
+  @ApiPropertyOptional({
+    type: Object,
+    description: 'Location filter',
+    example: { latitude: 40.7128, longitude: -74.0060, radius: 10 }
   })
   @IsOptional()
   @IsObject()
@@ -333,23 +248,23 @@ export class SearchListingDto {
   @IsString()
   sort?: string;
 
-    @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc'})
-    @IsOptional()
-    @IsEnum(['asc', 'desc'])
-    order?: 'asc' | 'desc';
+  @ApiPropertyOptional({ enum: ['asc', 'desc'], default: 'desc'})
+  @IsOptional()
+  @IsEnum(['asc', 'desc'])
+  order?: 'asc' | 'desc';
 
-    @ApiPropertyOptional({
-        description: 'Price range filter',
-        type: Object,
-        example: {min: 50, max: 200}
-    })
-    @IsOptional()
-    @ValidateNested()
-    @Type(() => PriceRangeDto) // Use PriceRangeDto
-    priceRange?: {
-        min?: number;
-        max?: number;
-    };
+  @ApiPropertyOptional({
+    description: 'Price range filter',
+    type: Object,
+    example: {min: 50, max: 200}
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PriceRangeDto) // Use PriceRangeDto
+  priceRange?: {
+    min?: number;
+    max?: number;
+  };
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -359,21 +274,21 @@ export class SearchListingDto {
 }
 
 export class PriceRangeDto{
-    @ApiPropertyOptional({
-        description: "Minimum Price",
-        type: Number
-    })
-    @IsOptional()
-    @IsNumber()
-    min?:number
+  @ApiPropertyOptional({
+    description: "Minimum Price",
+    type: Number
+  })
+  @IsOptional()
+  @IsNumber()
+  min?:number
 
-    @ApiPropertyOptional({
-        description: "Maximum Price",
-        type: Number
-    })
-    @IsOptional()
-    @IsNumber()
-    max?:number
+  @ApiPropertyOptional({
+    description: "Maximum Price",
+    type: Number
+  })
+  @IsOptional()
+  @IsNumber()
+  max?:number
 }
 
 export class ListingResponseDto {
@@ -401,25 +316,23 @@ export class ListingResponseDto {
   @ApiProperty({ enum: ListingStatus })
   status: ListingStatus;
 
-    @ApiProperty({ type: () => LocationDto })
-    location: LocationDto;
+  @ApiProperty({ type: () => LocationDto })
+  location: LocationDto;
 
-
-    @ApiProperty({ type: () => ContactDto })
-    contact: ContactDto;
-
+  @ApiProperty({ type: () => ContactDto })
+  contact: ContactDto;
 
   @ApiProperty({ type: () => UserResponseDto })
   seller: UserResponseDto;
 
-    @ApiProperty({ type: [ImageDto] }) // Use ImageDto
-    images: ImageDto[];
+  @ApiProperty({ type: [ImageDto] }) // Use ImageDto
+  images: ImageDto[];
 
-    @ApiProperty({ type: [Object] })
-    categories: {
-        id: string;
-        name: string;
-    }[];
+  @ApiProperty({ type: [Object] })
+  categories: {
+    id: string;
+    name: string;
+  }[];
 
   @ApiPropertyOptional()
   metadata?: Record<string, any>;
@@ -427,9 +340,9 @@ export class ListingResponseDto {
   @ApiProperty()
   views: number;
 
-    @ApiPropertyOptional({
-      type: Number,
-      description: 'Number of favorites'
+  @ApiProperty({
+    type: Number,
+    description: 'Number of favorites'
   })
   @IsOptional() // Optional
   favorites?: number; // Use number

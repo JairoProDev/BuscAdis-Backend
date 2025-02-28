@@ -34,20 +34,20 @@ export class AuthService {
         }
     }
 
-    async validateUser(email: string, password: string): Promise<User | null> {
+    async validateUser(email: string, password: string): Promise<any> {
         const user = await this.usersService.findByEmail(email);
-        if (user && user.password && await bcrypt.compare(password, user.password)) {
-            return user;
+        if (user?.password && await bcrypt.compare(password, user.password)) {
+            const { password, ...result } = user;
+            return result;
         }
         return null;
     }
 
-    async login(loginDto: LoginDto): Promise<AuthResponseDto> {
-        const user = await this.validateUser(loginDto.email, loginDto.password);
-        if (!user) {
-            throw new UnauthorizedException('Invalid credentials');
-        }
-        return this.generateToken(user);
+    async login(user: any) {
+        const payload = { email: user.email, sub: user.id };
+        return {
+            access_token: this.jwtService.sign(payload),
+        };
     }
 
     async register(registerDto: RegisterDto): Promise<AuthResponseDto> {

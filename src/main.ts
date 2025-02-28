@@ -1,49 +1,39 @@
 // main.ts
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import * as compression from 'compression';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
-import { setupSwagger } from './config/swagger.config';
+import { CustomLogger } from './common/logger/logger.service';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  const configService = app.get(ConfigService);
+  const app = await NestFactory.create(AppModule, {
+    logger: new CustomLogger(),
+  });
 
-  // Global prefix
-  const apiPrefix = configService.get('apiPrefix');
-  const apiVersion = configService.get('apiVersion');
-  app.setGlobalPrefix(`${apiPrefix}/${apiVersion}`);
-
-  // Security
+  // Seguridad
   app.use(helmet());
+  app.use(compression());
+
+  // Validación global
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    transform: true,
+    forbidNonWhitelisted: true,
+  }));
+
+  // Manejo de errores global
+  const logger = app.get(CustomLogger);
+  app.useGlobalFilters(new AllExceptionsFilter(logger));
+
+  // CORS
   app.enableCors({
-    origin: configService.get('frontendUrl'),
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
   });
 
-  // Compression
-  app.use(compression());
-
-  // Validation
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
-
-  // Swagger documentation
-  setupSwagger(app, configService);
-
-  // Start the server
-  const port = configService.get('port');
-  await app.listen(port);
-  console.log(`Application is running on: ${await app.getUrl()}`);
+  await app.listen(process.env.PORT || 3000);
 }
 bootstrap();

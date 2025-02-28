@@ -26,18 +26,21 @@ export class Image {
   @Column()
   mimeType: string;
 
+  @Column()
+  order: number;
+
+  @Column({ default: '' })
+  alt: string;
+
   @Column({ nullable: true })
   thumbnail?: string;
 
-  @Column({ default: 0 })
-  order: number;
+  @Column()
+  listingId: string;
 
-  @Column({ nullable: true })
-  listingId?: string;
-
-  @ManyToOne(() => Listing, listing => listing.images, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Listing, listing => listing.images)
   @JoinColumn({ name: 'listingId' })
-  listing?: Listing;
+  listing: Listing;
 
   @CreateDateColumn()
   createdAt: Date;

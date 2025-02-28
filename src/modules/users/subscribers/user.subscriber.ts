@@ -18,13 +18,15 @@ import {
 
     async afterInsert(event: InsertEvent<User>) {
         if (event.entity) {
-            await this.usersService.indexUser(event.entity);
+            // Eliminar la llamada a indexUser
+            // await this.usersService.indexUser(event.entity);
         }
     }
 
     async afterUpdate(event: UpdateEvent<User>) {
         if (event.entity) {
-            await this.usersService.indexUser(event.entity as User); // Ya es de tipo User
+            // Eliminar la llamada a indexUser
+            // await this.usersService.indexUser(event.entity as User); // Ya es de tipo User
         }
     }
   }

@@ -40,13 +40,6 @@ export default () => ({
     bucketName: process.env.AWS_BUCKET_NAME, //Estos valores no deberían tener un default, ya que varían.
   },
 
-  // Elasticsearch
-  elasticsearch: {
-    node: process.env.ELASTICSEARCH_NODE || 'http://localhost:9200',
-    username: process.env.ELASTICSEARCH_USERNAME || 'elastic', //Aunque no es lo ideal, mantengo el default,
-    password: process.env.ELASTICSEARCH_PASSWORD || 'changeme',//Aunque no es lo ideal, mantengo el default,
-  },
-
   // Redis
   redis: {
     host: process.env.REDIS_HOST || 'localhost',

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { Message } from './entities/message.entity';
@@ -10,6 +10,8 @@ import { ListingsService } from '../listings/listings.service'; // Import Listin
 
 @Injectable()
 export class MessagesService {
+  private readonly logger = new Logger(MessagesService.name);
+
   constructor(
     @InjectRepository(Message)
     private readonly messagesRepository: Repository<Message>,
@@ -170,4 +172,14 @@ export class MessagesService {
             // readAt: message.readAt
         };
     }
+
+  async getConversation(userId1: string, userId2: string): Promise<Message[]> {
+    return this.messagesRepository.find({
+      where: [
+        { senderId: userId1, receiverId: userId2 },
+        { senderId: userId2, receiverId: userId1 },
+      ],
+      order: { createdAt: 'ASC' },
+    });
+  }
 }

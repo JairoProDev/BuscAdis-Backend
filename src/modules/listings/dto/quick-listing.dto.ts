@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ListingType, ListingStatus, PriceType } from '../entities/listing.entity';
-import { LocationDto } from './listing.dto';
+import { LocationDto } from './location.dto';
 import { ContactDto } from './contact.dto';
 
 export class QuickListingDto {

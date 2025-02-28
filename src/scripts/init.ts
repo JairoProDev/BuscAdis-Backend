@@ -4,33 +4,22 @@ import { AppModule } from '../app.module';
 import { ListingsService } from 'src/modules/listings/listings.service';
 import { CategoriesService } from 'src/modules/categories/categories.service';
 import { UsersService } from 'src/modules/users/users.service';
-//import { SearchService } from '../modules/search/search.service'; // Ya no lo necesitas
 
 async function bootstrap() {
-  const app = await NestFactory.createApplicationContext(AppModule); //  createApplicationContext
+  const app = await NestFactory.createApplicationContext(AppModule);
   const configService = app.get(ConfigService);
-  //  SearchService. Ya no tienes SearchService, usa los servicios individuales.
   const listingsService = app.get(ListingsService);
   const categoriesService = app.get(CategoriesService);
-  const usersService = app.get(UsersService)
+  const usersService = app.get(UsersService);
 
   try {
-    // Initialize Elasticsearch index
-    console.log('Initializing Elasticsearch indices...');
-    // await searchService.createIndex(); // Ya no, cada servicio crea su propio indice
-    await listingsService['createIndex'](); // Accede al método privado
-    await categoriesService['createIndex'](); //Accede al metodo
-    await usersService['createIndex']();
+    // Initialize services
+    console.log('Initializing services...');
+    await listingsService.initialize();
+    await categoriesService.initialize();
+    await usersService.initialize();
 
-
-    console.log('Elasticsearch indices initialized successfully');
-
-    // Add more initialization tasks here if needed
-    // For example:
-    // - Create default admin user
-    // - Create default categories
-    // - Import initial data
-    // - etc.
+    console.log('Services initialized successfully');
 
   } catch (error) {
     console.error('Error during initialization:', error);

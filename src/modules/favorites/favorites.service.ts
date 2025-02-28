@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,10 +12,12 @@ import { User } from '../users/entities/user.entity';
 import { CreateFavoriteDto } from './dto/favorite.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FavoriteResponseDto } from './dto/favorite.dto'
-import { ImageDto } from '../listings/dto/listing.dto';
+import { ImageDto } from '../images/dto/image.dto';
 
 @Injectable()
 export class FavoritesService {
+  private readonly logger = new Logger(FavoritesService.name);
+
   constructor(
     @InjectRepository(Favorite)
     private readonly favoritesRepository: Repository<Favorite>,
@@ -95,7 +98,7 @@ export class FavoritesService {
         id: favorite.id,
         listing: {
             ...favorite.listing,
-            favorites: favorite.listing.favorites ? favorite.listing.favorites.length : 0,
+            favorites: favorite.listing.favorites || 0,
             contact: {
                 whatsapp: favorite.listing.contact.whatsapp || '',
                 showEmail: favorite.listing.contact.showEmail ?? false,
@@ -114,4 +117,23 @@ export class FavoritesService {
         createdAt: favorite.createdAt
         }
     }
+
+  async toggleFavorite(createFavoriteDto: CreateFavoriteDto, userId: string): Promise<void> {
+    const existing = await this.favoritesRepository.findOne({
+      where: {
+        listing: { id: createFavoriteDto.listingId },
+        user: { id: userId },
+      },
+    });
+
+    if (existing) {
+      await this.favoritesRepository.remove(existing);
+    } else {
+      const favorite = this.favoritesRepository.create({
+        listing: { id: createFavoriteDto.listingId },
+        user: { id: userId },
+      });
+      await this.favoritesRepository.save(favorite);
+    }
+  }
 }

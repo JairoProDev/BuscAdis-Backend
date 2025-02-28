@@ -22,6 +22,13 @@ import { SearchDto, SearchResponseDto } from './dto/search.dto';
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
+  @Get()
+  @ApiOperation({ summary: 'Search listings' })
+  @ApiResponse({ status: 200, description: 'Return search results' })
+  async search(@Query() searchDto: SearchDto): Promise<SearchResponseDto> {
+    return this.searchService.searchListings(searchDto);
+  }
+
   @Post('listings')
   @ApiOperation({ summary: 'Search listings' })
   @ApiResponse({

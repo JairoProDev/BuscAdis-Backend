@@ -1,279 +1,97 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ElasticsearchService } from '@nestjs/elasticsearch';
-import { SearchDto, SearchResponseDto } from './dto/search.dto';
-import { SearchResponse, SearchHit, SearchTotalHits } from '@elastic/elasticsearch/lib/api/types';
-import { ListingAggregations, StatsAggregation } from './types/elasticsearch.types';
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Listing } from '../listings/entities/listing.entity';
+import { SearchDto, SearchResponseDto, PriceStatsDto, ConditionBucketDto, CategoryBucketDto } from './dto/search.dto';
 
 @Injectable()
 export class SearchService {
-  private readonly logger = new Logger(SearchService.name);
-  private readonly listingsIndex = 'listings';
-
-  constructor(private readonly elasticsearchService: ElasticsearchService) {}
-
-  async search<T>(index: string, query: any): Promise<T[]> {
-    try {
-      const response = await this.elasticsearchService.search<T>({
-        index,
-        ...query,
-      });
-
-      return response.hits.hits.map((hit) => ({
-        ...hit._source,
-        id: hit._id,
-        score: hit._score,
-      } as T));
-    } catch (error) {
-      this.logger.error(`Error searching in ${index}:`, (error as Error).message);
-      throw error;
-    }
-  }
-
-  async createIndex(index: string = this.listingsIndex): Promise<void> {
-    try {
-      const exists = await this.elasticsearchService.indices.exists({ index });
-      if (!exists) {
-        await this.elasticsearchService.indices.create({
-          index,
-          body: {
-            mappings: {
-              properties: {
-                title: { type: 'text' },
-                description: { type: 'text' },
-                price: { type: 'float' },
-                location: { type: 'geo_point' },
-                categories: {
-                  type: 'nested',
-                  properties: {
-                    id: { type: 'keyword' },
-                    name: { type: 'text' },
-                    slug: { type: 'keyword' },
-                  },
-                },
-              },
-            },
-          },
-        });
-        this.logger.log(`Created index ${index}`);
-      }
-    } catch (error) {
-      this.logger.error(`Error creating index ${index}:`, (error as Error).message);
-      throw error;
-    }
-  }
-
-  async deleteIndex(index: string = this.listingsIndex): Promise<void> {
-    try {
-      const exists = await this.elasticsearchService.indices.exists({ index });
-      if (exists) {
-        await this.elasticsearchService.indices.delete({ index });
-        this.logger.log(`Deleted index ${index}`);
-      }
-    } catch (error) {
-      this.logger.error(`Error deleting index ${index}:`, (error as Error).message);
-      throw error;
-    }
-  }
+  constructor(
+    @InjectRepository(Listing)
+    private readonly listingRepository: Repository<Listing>,
+  ) {}
 
   async searchListings(searchDto: SearchDto): Promise<SearchResponseDto> {
-    const {
-      query,
-      category,
-      priceMin,
-      priceMax,
-      condition,
-      location,
-      radius,
-      sort,
-      page = 1,
-      limit = 10,
-    } = searchDto;
-
-    const must: any[] = [{ term: { isActive: true } }];
-    const filter: any[] = [];
-
-    if (query) {
-      must.push({
-        multi_match: {
-          query,
-          fields: ['title^3', 'description^2', 'categories.name'],
-          type: 'best_fields',
-          fuzziness: 'AUTO',
-        },
-      });
-    }
-
-    if (category) {
-      filter.push({
-        nested: {
-          path: 'categories',
-          query: {
-            bool: {
-              should: [
-                { term: { 'categories.id': category } },
-                { term: { 'categories.slug': category } },
-              ],
-            },
-          },
-        },
-      });
-    }
-
-    if (priceMin !== undefined || priceMax !== undefined) {
-      const range: any = {};
-      if (priceMin !== undefined) range.gte = priceMin;
-      if (priceMax !== undefined) range.lte = priceMax;
-      filter.push({ range: { price: range } });
-    }
-
-    if (condition) {
-      filter.push({ term: { condition } });
-    }
-
-    if (location && radius) {
-      filter.push({
-        geo_distance: {
-          distance: `${radius}km`,
-          location: {
-            lat: location.lat,
-            lon: location.lon,
-          },
-        },
-      });
-    }
-
-    const sortOptions: any[] = [];
-    if (sort) {
-      switch (sort) {
-        case 'price_asc':
-          sortOptions.push({ price: 'asc' });
-          break;
-        case 'price_desc':
-          sortOptions.push({ price: 'desc' });
-          break;
-        case 'date_desc':
-          sortOptions.push({ createdAt: 'desc' });
-          break;
-        case 'relevance':
-          sortOptions.push('_score');
-          break;
-      }
-    } else {
-      sortOptions.push('_score');
-    }
-
-    const response = await this.elasticsearchService.search<SearchResponse<any, Record<string, any>>>({
-      index: this.listingsIndex,
-      body: {
-        from: (page - 1) * limit,
-        size: limit,
-        query: {
-          bool: {
-            must,
-            filter,
-          },
-        },
-        sort: sortOptions,
-        aggs: {
-          price_stats: {
-            stats: {
-              field: 'price',
-            },
-          },
-          conditions: {
-            terms: {
-              field: 'condition.keyword',
-            },
-          },
-          categories: {
-            nested: {
-              path: 'categories',
-            },
-            aggs: {
-              unique_categories: {
-                terms: {
-                  field: 'categories.name.keyword',
-                },
-              },
-            },
-          },
-        },
-      },
+    const [items, total] = await this.listingRepository.findAndCount({
+      where: this.buildSearchQuery(searchDto),
+      take: searchDto.limit || 10,
+      skip: ((searchDto.page || 1) - 1) * (searchDto.limit || 10),
+      relations: ['categories', 'seller'],
     });
-
-    const hits = response.hits.hits.map((hit: SearchHit<any>) => ({
-      ...hit._source,
-      score: hit._score,
-    }));
-
-    const total = (response.hits.total as SearchTotalHits).value || 0;
-    const aggregations = response.aggregations || {};
-
-    const priceStats = aggregations.price_stats as StatsAggregation || {
-      count: 0,
-      min: 0,
-      max: 0,
-      avg: 0,
-      sum: 0,
-    };
-
-    const conditions = (aggregations.conditions as any)?.buckets || [];
-    const categories = (aggregations.categories as any)?.unique_categories?.buckets || [];
 
     return {
-      items: hits,
+      items,
       total,
-      page,
-      limit,
+      page: searchDto.page || 1,
+      limit: searchDto.limit || 10,
+      pages: Math.ceil(total / (searchDto.limit || 10)),
       aggregations: {
-        priceStats,
-        conditions,
-        categories,
+        priceStats: this.calculatePriceStats(items),
+        conditions: this.calculateConditions(items),
+        categories: this.calculateCategories(items),
       },
     };
   }
 
-  async indexListing(listing: any): Promise<void> {
-    if (!listing.location?.coordinates) {
-      throw new Error('Listing coordinates are required for indexing');
+  private buildSearchQuery(searchDto: SearchDto) {
+    const query: any = {};
+    if (searchDto.query) {
+      query.title = { $regex: searchDto.query, $options: 'i' };
     }
-
-    await this.elasticsearchService.index({
-      index: this.listingsIndex,
-      id: listing.id,
-      body: {
-        ...listing,
-        location: {
-          lat: listing.location.coordinates.lat,
-          lon: listing.location.coordinates.lon,
-        },
-      },
-    });
+    return query;
   }
 
-  async updateListing(id: string, listing: any): Promise<void> {
-    const updateBody: any = { ...listing };
-    
-    if (listing.location?.coordinates) {
-      updateBody.location = {
-        lat: listing.location.coordinates.lat,
-        lon: listing.location.coordinates.lon,
+  private calculatePriceStats(items: Listing[]): PriceStatsDto {
+    if (!items.length) {
+      return {
+        min: 0,
+        max: 0,
+        avg: 0,
+        sum: 0,
+        count: 0,
       };
     }
-
-    await this.elasticsearchService.update({
-      index: this.listingsIndex,
-      id,
-      body: {
-        doc: updateBody,
-      },
-    });
+    const prices = items.map(item => item.price);
+    return {
+      min: Math.min(...prices),
+      max: Math.max(...prices),
+      avg: prices.reduce((a, b) => a + b, 0) / prices.length,
+      sum: prices.reduce((a, b) => a + b, 0),
+      count: prices.length,
+    };
   }
 
-  async removeListing(id: string): Promise<void> {
-    await this.elasticsearchService.delete({
-      index: this.listingsIndex,
-      id,
-    });
+  private calculateConditions(items: Listing[]): ConditionBucketDto[] {
+    const conditionsMap = items.reduce((acc, item) => {
+      acc[item.condition] = (acc[item.condition] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(conditionsMap).map(([condition, count]) => ({
+      condition,
+      count,
+    }));
+  }
+
+  private calculateCategories(items: Listing[]): CategoryBucketDto[] {
+    const categoriesMap = items.reduce((acc, item) => {
+      item.categories.forEach(category => {
+        acc[category.name] = (acc[category.name] || 0) + 1;
+      });
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(categoriesMap).map(([name, count]) => ({
+      name,
+      count,
+    }));
+  }
+
+  async createIndex(): Promise<void> {
+    // Implementar si es necesario
+  }
+
+  async deleteIndex(): Promise<void> {
+    // Implementar si es necesario
   }
 } 

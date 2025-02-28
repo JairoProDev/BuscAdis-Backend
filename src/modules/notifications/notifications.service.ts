@@ -1,5 +1,5 @@
 // src/modules/notifications/notifications.service.ts
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
@@ -16,6 +16,8 @@ import { Listing } from '../listings/entities/listing.entity';
 
 @Injectable()
 export class NotificationsService {
+    private readonly logger = new Logger(NotificationsService.name);
+
     constructor(
         @InjectRepository(Notification)
         private readonly notificationRepository: Repository<Notification>,
