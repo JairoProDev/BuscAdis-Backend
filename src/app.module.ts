@@ -8,6 +8,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { SearchModule } from './modules/search/search.module';
 import { ListingsModule } from './modules/listings/listings.module';
 import { UsersModule } from './modules/users/users.module';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UsersModule } from './modules/users/users.module';
     TasksModule,
     ListingsModule,
     UsersModule,
+    StorageModule,
   ],
 })
 export class AppModule {}

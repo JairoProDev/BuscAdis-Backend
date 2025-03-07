@@ -56,8 +56,8 @@ export class AuthService {
             throw new BadRequestException('El correo electrónico ya está registrado.');
         }
 
-        const user: User = await this.usersService.create(registerDto);
-        if (!user) {
+        const userResponse: UserResponseDto = await this.usersService.create(registerDto);
+        if (!userResponse) {
             throw new BadRequestException('Error creating user');
         }
 
@@ -66,11 +66,9 @@ export class AuthService {
             isVerified: false,
         };
 
-        if (user.id) {
-            await this.usersService.update(user.id, updateUserDto);
-        } else {
-            throw new NotFoundException('User ID not found');
-        }
+        await this.usersService.update(userResponse.id, updateUserDto);
+
+        const user: User = await this.usersService.findByEmail(userResponse.email) as User;
 
         return this.generateToken(user);
     }
@@ -103,8 +101,9 @@ export class AuthService {
                     password: Math.random().toString(36).slice(-8),
                     phoneNumber: '',
                 };
-                user = await this.usersService.create(createUserDto);
-                if (!user) {
+                const userResponse: UserResponseDto = await this.usersService.create(createUserDto);
+
+                if (!userResponse) {
                     throw new NotFoundException('User creation failed.');
                 }
                 const updateUserDto: UpdateUserDto = {
@@ -113,7 +112,8 @@ export class AuthService {
                     isVerified: true,
                     phoneNumber: '',
                 };
-                await this.usersService.update(user.id, updateUserDto);
+                await this.usersService.update(userResponse.id, updateUserDto);
+                user = await this.usersService.findByEmail(userResponse.email) as User;
             }
         }
 
@@ -141,14 +141,16 @@ export class AuthService {
                 password: '',
                 phoneNumber: '',
             };
-            user = await this.usersService.create(createUserDto);
+            const userResponse: UserResponseDto = await this.usersService.create(createUserDto);
             const updateUserDto: UpdateUserDto = {
                 provider: provider,
                 oauthId: profile.id,
                 isVerified: true,
                 phoneNumber: '',
             };
-            await this.usersService.update(user.id, updateUserDto);
+            await this.usersService.update(userResponse.id, updateUserDto);
+            user = await this.usersService.findByEmail(userResponse.email) as User;
+
         } else if (user.provider !== provider) {
             throw new BadRequestException(`User already exists with ${user.provider} authentication`);
         }

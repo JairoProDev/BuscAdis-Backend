@@ -1,106 +1,73 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+// src/modules/storage/storage.service.ts
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3 } from 'aws-sdk';
-import { v4 as uuid } from 'uuid';
-import * as sharp from 'sharp';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import { UploadResult } from './interfaces/upload-result.interface';
 
 @Injectable()
 export class StorageService {
-  private readonly s3: S3;
-  private readonly bucketName: string;
-  private readonly logger = new Logger(StorageService.name);
+    private s3Client: S3Client;
+    private bucketName: string;
+    private readonly logger = new Logger(StorageService.name);
 
-  constructor(private readonly configService: ConfigService) {
-    const bucketName = this.configService.get<string>('aws.s3.bucket');
-    if (!bucketName) {
-      throw new Error('AWS_S3_BUCKET environment variable is not set');
+    constructor(private configService: ConfigService) {
+        const bucketName = this.configService.get<string>('AWS_S3_BUCKET');
+        if (!bucketName) {
+            this.logger.error('AWS_S3_BUCKET is not defined in the configuration.');
+            throw new Error('AWS_S3_BUCKET is not defined in the configuration.');
+        }
+        this.bucketName = bucketName;
+
+        const region = this.configService.get<string>('AWS_REGION');
+        const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
+        const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
+
+        if (!region || !accessKeyId || !secretAccessKey) {
+            this.logger.error('AWS credentials are not fully defined in the configuration.');
+            throw new Error('AWS credentials are not fully defined in the configuration.');
+        }
+
+        this.s3Client = new S3Client({
+            region: region,
+            credentials: {
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+            },
+        });
     }
-    this.bucketName = bucketName;
 
-    this.s3 = new S3({
-      accessKeyId: this.configService.get<string>('aws.accessKeyId'),
-      secretAccessKey: this.configService.get<string>('aws.secretAccessKey'),
-      region: this.configService.get<string>('aws.region'),
-    });
-  }
+    async uploadFile(file: Express.Multer.File, thumbnail?: string): Promise<UploadResult> {
+        const key = `${Date.now()}-${file.originalname}`;
+        const upload = new Upload({
+            client: this.s3Client,
+            params: {
+                Bucket: this.bucketName,
+                Key: key,
+                Body: file.buffer,
+                ContentType: file.mimetype,
+            },
+        });
 
-  async uploadFile(file: Express.Multer.File): Promise<UploadResult> {
-    try {
-      const optimizedBuffer = await this.optimizeImage(file.buffer);
-      const thumbnailBuffer = await this.createThumbnail(file.buffer);
-      
-      const fileExtension = 'webp';
-      const fileName = `${uuid()}.${fileExtension}`;
-      const thumbnailName = `thumbnails/${uuid()}.${fileExtension}`;
+        await upload.done();
 
-      // Upload optimized image
-      await this.s3.upload({
-        Bucket: this.bucketName,
-        Key: fileName,
-        Body: optimizedBuffer,
-        ContentType: 'image/webp',
-        ACL: 'public-read',
-      }).promise();
-
-      // Upload thumbnail
-      await this.s3.upload({
-        Bucket: this.bucketName,
-        Key: thumbnailName,
-        Body: thumbnailBuffer,
-        ContentType: 'image/webp',
-        ACL: 'public-read',
-      }).promise();
-
-      return {
-        url: `https://${this.bucketName}.s3.amazonaws.com/${fileName}`,
-        thumbnail: `https://${this.bucketName}.s3.amazonaws.com/${thumbnailName}`,
-        key: fileName,
-      };
-    } catch (error: unknown) {
-      const err = error as Error;
-      this.logger.error(`Failed to upload file: ${err.message}`, err.stack);
-      throw new BadRequestException('Failed to upload file');
+        return {
+            url: `https://${this.bucketName}.s3.amazonaws.com/${key}`, // Construir la URL
+            key: key,
+            thumbnail: thumbnail || '',
+        };
     }
-  }
 
-  async deleteFile(key: string): Promise<void> {
-    try {
-      // Delete main image
-      await this.s3.deleteObject({
-        Bucket: this.bucketName,
-        Key: key,
-      }).promise();
+    async deleteFile(key: string): Promise<void> {
+        const params = {
+            Bucket: this.bucketName,
+            Key: key,
+        };
 
-      // Delete thumbnail if exists
-      const thumbnailKey = `thumbnails/${key}`;
-      await this.s3.deleteObject({
-        Bucket: this.bucketName,
-        Key: thumbnailKey,
-      }).promise();
-    } catch (error: unknown) {
-      const err = error as Error;
-      this.logger.error(`Failed to delete file: ${err.message}`, err.stack);
-      throw new BadRequestException('Failed to delete file');
+        await this.s3Client.send(new DeleteObjectCommand(params));
     }
-  }
 
-  private async optimizeImage(buffer: Buffer): Promise<Buffer> {
-    return sharp(buffer)
-      .resize(800, 800, { fit: 'inside' })
-      .webp({ quality: 80 })
-      .toBuffer();
-  }
-
-  private async createThumbnail(buffer: Buffer): Promise<Buffer> {
-    return sharp(buffer)
-      .resize(200, 200, { fit: 'cover' })
-      .webp({ quality: 60 })
-      .toBuffer();
-  }
-
-  getBucketName(): string {
-    // Return the name of the bucket
-    return 'your-bucket-name'; // Replace with your actual bucket name
-  }
-} 
+    getBucketName(): string {
+        return this.bucketName;
+    }
+}

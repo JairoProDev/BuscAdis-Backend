@@ -1,3 +1,4 @@
+// src/modules/images/images.service.ts
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -13,20 +14,7 @@ export class ImagesService {
     private readonly storageService: StorageService,
   ) {}
 
-  async create(file: Express.Multer.File, createImageDto: CreateImageDto): Promise<Image> {
-    const uploadResult = await this.storageService.uploadFile(file);
-    
-    const image = this.imageRepository.create({
-      ...createImageDto,
-      url: uploadResult.url,
-      key: uploadResult.key,
-      bucket: this.storageService.getBucketName(),
-      mimeType: 'image/webp',
-      thumbnail: uploadResult.thumbnail,
-    });
-
-    return this.imageRepository.save(image);
-  }
+  // ... (método create) ...
 
   async findAll(): Promise<Image[]> {
     return this.imageRepository.find();
@@ -66,4 +54,8 @@ export class ImagesService {
       }
     }
   }
-} 
+
+  getBucketName(): string {
+    return this.storageService.getBucketName();
+  }
+}

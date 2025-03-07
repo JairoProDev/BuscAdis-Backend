@@ -10,10 +10,20 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     private readonly configService: ConfigService,
     private readonly authService: AuthService,
   ) {
+    const clientID = configService.get<string>('FACEBOOK_APP_ID');
+    const clientSecret = configService.get<string>('FACEBOOK_APP_SECRET');
+    const callbackURL = configService.get<string>('FACEBOOK_CALLBACK_URL');
+
+    if (!clientID || !clientSecret || !callbackURL) {
+      throw new Error(
+        'Facebook authentication configuration is missing (FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, FACEBOOK_CALLBACK_URL)',
+      );
+    }
+
     super({
-      clientID: configService.get<string>('FACEBOOK_APP_ID'),
-      clientSecret: configService.get<string>('FACEBOOK_APP_SECRET'),
-      callbackURL: configService.get<string>('FACEBOOK_CALLBACK_URL'),
+      clientID,
+      clientSecret,
+      callbackURL,
       scope: ['email', 'public_profile'],
       profileFields: ['id', 'emails', 'name'],
     });
@@ -37,4 +47,4 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     const userRecord = await this.authService.validateOAuthLogin(user, 'facebook');
     done(null, userRecord);
   }
-} 
+}
