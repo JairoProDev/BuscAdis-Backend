@@ -23,7 +23,7 @@ export const setupSwagger = (
     .addTag('auth', 'Authentication endpoints')
     .addTag('users', 'User management endpoints')
     .addTag('categories', 'Category management endpoints')
-    .addTag('listings', 'Listing management endpoints')
+    .addTag('classifiedads', 'Classifiedad management endpoints')
     .addTag('search', 'Search functionality endpoints')
     .addTag('favorites', 'Favorites management endpoints')
     .addTag('messages', 'Messaging system endpoints')

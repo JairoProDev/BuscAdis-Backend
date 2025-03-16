@@ -21,13 +21,13 @@ import { Report } from '../../reports/entities/report.entity';
 import { Favorite } from '../../favorites/entities/favorite.entity';
 import { slugify } from '../../../common/utils/slugify';
 import { ImageDto } from '../../images/dto/image.dto';
-import { ListingType, ListingStatus, PriceType } from '../types/listing.types';
+import { ClassifiedadType, ClassifiedadStatus, PriceType } from '../types/classifiedad.types';
 import { ContactDto } from '../dto/contact.dto';
 import { LocationDto } from '../dto/location.dto';
 
-@Entity('listings')
+@Entity('classifiedads')
 @Index(['title', 'description'], { fulltext: true })
-export class Listing {
+export class Classifiedad {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -43,10 +43,10 @@ export class Listing {
 
   @Column({
     type: 'enum',
-    enum: ListingType,
-    default: ListingType.OTHER,
+    enum: ClassifiedadType,
+    default: ClassifiedadType.OTHER,
   })
-  type: ListingType;
+  type: ClassifiedadType;
 
   @Column('decimal', { precision: 10, scale: 2 })
   price: number;
@@ -60,10 +60,10 @@ export class Listing {
 
   @Column({
     type: 'enum',
-    enum: ListingStatus,
-    default: ListingStatus.DRAFT,
+    enum: ClassifiedadStatus,
+    default: ClassifiedadStatus.DRAFT,
   })
-  status: ListingStatus;
+  status: ClassifiedadStatus;
 
   @Column('jsonb')
   contact: ContactDto;
@@ -95,18 +95,18 @@ export class Listing {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => User, user => user.listings)
+  @ManyToOne(() => User, user => user.classifiedads)
   seller: User;
 
   @ManyToMany(() => Category)
   @JoinTable({
-    name: 'listing_categories',
-    joinColumn: { name: 'listing_id', referencedColumnName: 'id' },
+    name: 'classifiedad_categories',
+    joinColumn: { name: 'classifiedad_id', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'category_id', referencedColumnName: 'id' },
   })
   categories: Category[];
 
-  @OneToMany(() => Image, image => image.listing)
+  @OneToMany(() => Image, image => image.classifiedad)
   images: Image[];
 
   @Column('jsonb', { nullable: true })
@@ -118,10 +118,10 @@ export class Listing {
   @Column({ default: 0 })
   favorites: number;
 
-  @OneToMany(() => Message, message => message.listing)
+  @OneToMany(() => Message, message => message.classifiedad)
   messages: Message[];
 
-  @OneToMany(() => Report, report => report.listing)
+  @OneToMany(() => Report, report => report.classifiedad)
   reports: Report[];
 
   @Column('jsonb', { nullable: true })
@@ -133,7 +133,7 @@ export class Listing {
   @Column({ select: false, insert: false, update: false, nullable: true })
   relevanceScore?: number;
 
-  @ManyToOne(() => Category, category => category.listings)
+  @ManyToOne(() => Category, category => category.classifiedads)
   @JoinColumn({ name: 'categoryId' })
   category: Category;
 
@@ -149,5 +149,5 @@ export class Listing {
   }
 }
 
-export { ListingType, ListingStatus, PriceType }; 
+export { ClassifiedadType, ClassifiedadStatus, PriceType }; 
 

@@ -10,33 +10,33 @@ import {
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, MoreThan, LessThan, Like, FindOptionsWhere, Between, LessThanOrEqual, MoreThanOrEqual, Not } from 'typeorm';
-import { Listing, ListingStatus } from './entities/listing.entity';
+import { Classifiedad, ClassifiedadStatus } from './entities/classifiedad.entity';
 import { User } from '../users/entities/user.entity';
 import { Category } from '../categories/entities/category.entity';
 import { StorageService } from '../storage/storage.service';
 import { ImagesService } from '../images/images.service';
 import {
-  QuickListingDto,
-  CreateListingDto,
-  UpdateListingDto,
-  SearchListingDto,
-  ListingResponseDto,
-} from './dto/listing.dto';
+  QuickClassifiedadDto,
+  CreateClassifiedadDto,
+  UpdateClassifiedadDto,
+  SearchClassifiedadDto,
+  ClassifiedadResponseDto,
+} from './dto/classifiedad.dto';
 import { Cache } from 'cache-manager';
 import slugify from 'slugify';
 import { ImageDto } from '../images/dto/image.dto';
 import { ContactDto } from './dto/contact.dto';
 import { LocationDto } from './dto/location.dto';
 import { Image } from '../images/entities/image.entity';
-import { ListingStatus as ListingStatusType } from './types/listing.types';
+import { ClassifiedadStatus as ClassifiedadStatusType } from './types/classifiedad.types';
 
 @Injectable()
-export class ListingsService {
-  private readonly logger = new Logger(ListingsService.name);
+export class ClassifiedadsService {
+  private readonly logger = new Logger(ClassifiedadsService.name);
 
   constructor(
-    @InjectRepository(Listing)
-    private readonly listingRepository: Repository<Listing>,
+    @InjectRepository(Classifiedad)
+    private readonly classifiedadRepository: Repository<Classifiedad>,
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
     private readonly storageService: StorageService,
@@ -47,17 +47,17 @@ export class ListingsService {
 
   async initialize(): Promise<void> {
     // Implement any initialization logic here
-    this.logger.log('ListingsService initialized');
+    this.logger.log('ClassifiedadsService initialized');
   }
 
-  async createQuick(quickListingDto: QuickListingDto, owner: User): Promise<Listing> {
+  async createQuick(quickClassifiedadDto: QuickClassifiedadDto, owner: User): Promise<Classifiedad> {
     try {
       // Validaciones de datos
-      this.validateListingData(quickListingDto);
+      this.validateClassifiedadData(quickClassifiedadDto);
       
       // Validar imágenes
-      if (quickListingDto.images) {
-        const images = quickListingDto.images.map(img => {
+      if (quickClassifiedadDto.images) {
+        const images = quickClassifiedadDto.images.map(img => {
           const image = new Image();
           Object.assign(image, img);
           return image;
@@ -66,21 +66,21 @@ export class ListingsService {
       }
 
       // Validar categorías
-      const categories = await this.validateCategories(quickListingDto.categoryIds);
+      const categories = await this.validateCategories(quickClassifiedadDto.categoryIds);
 
       // Crear el listado
-      const listing = await this.listingRepository.save({
-        ...this.prepareListingData(quickListingDto, owner),
+      const classifiedad = await this.classifiedadRepository.save({
+        ...this.prepareClassifiedadData(quickClassifiedadDto, owner),
         categories,
       });
 
-      return listing;
+      return classifiedad;
     } catch (error) {
-      this.handleListingError(error);
+      this.handleClassifiedadError(error);
     }
   }
 
-  private validateListingData(data: QuickListingDto) {
+  private validateClassifiedadData(data: QuickClassifiedadDto) {
     if (!data.title?.trim()) {
       throw new BadRequestException('El título es requerido');
     }
@@ -104,132 +104,132 @@ export class ListingsService {
     return `${baseSlug}-${timestamp}`;
   }
 
-  async create(createListingDto: CreateListingDto, seller: User): Promise<Listing> {
+  async create(createClassifiedadDto: CreateClassifiedadDto, seller: User): Promise<Classifiedad> {
     try {
-      const slug = this.generateSlug(createListingDto.title);
-      const categories = await this.categoryRepository.findByIds(createListingDto.categoryIds);
+      const slug = this.generateSlug(createClassifiedadDto.title);
+      const categories = await this.categoryRepository.findByIds(createClassifiedadDto.categoryIds);
 
-      const listing = this.listingRepository.create({
-        ...createListingDto,
+      const classifiedad = this.classifiedadRepository.create({
+        ...createClassifiedadDto,
         slug,
         seller,  //  seller
         categories, //  categories (plural)
-        status: createListingDto.status || ListingStatusType.ACTIVE, //  status, con valor por defecto
+        status: createClassifiedadDto.status || ClassifiedadStatusType.ACTIVE, //  status, con valor por defecto
         publishedAt: new Date(),
       });
 
-      const savedListing = await this.listingRepository.save(listing);
-      return savedListing; // Devuelve la entidad
+      const savedClassifiedad = await this.classifiedadRepository.save(classifiedad);
+      return savedClassifiedad; // Devuelve la entidad
     } catch (error) {
-      this.logger.error(`Error creating listing: ${(error as Error).message}`, (error as Error).stack);
+      this.logger.error(`Error creating classifiedad: ${(error as Error).message}`, (error as Error).stack);
       throw new BadRequestException((error as Error).message || 'Error al crear el anuncio');
     }
   }
 
-  async findAll(): Promise<Listing[]> {
+  async findAll(): Promise<Classifiedad[]> {
     // Intentar obtener del caché
-    const cachedListings = await this.cacheManager.get<Listing[]>('all_listings');
-    if (cachedListings) {
-      return cachedListings;
+    const cachedClassifiedads = await this.cacheManager.get<Classifiedad[]>('all_classifiedads');
+    if (cachedClassifiedads) {
+      return cachedClassifiedads;
     }
 
     // Si no está en caché, obtener de la base de datos
-    const listings = await this.listingRepository.find({
+    const classifiedads = await this.classifiedadRepository.find({
       where: { isActive: true },
       relations: ['seller', 'categories'],
     });
 
     // Guardar en caché por 5 minutos
-    await this.cacheManager.set('all_listings', listings, 300);
+    await this.cacheManager.set('all_classifiedads', classifiedads, 300);
 
-    return listings;
+    return classifiedads;
   }
 
-  async findOne(id: string): Promise<Listing> {
-    const listing = await this.listingRepository.findOne({
+  async findOne(id: string): Promise<Classifiedad> {
+    const classifiedad = await this.classifiedadRepository.findOne({
       where: { id },
       relations: ['seller', 'categories'], //  'categories' en plural
     });
 
-    if (!listing) {
+    if (!classifiedad) {
       throw new NotFoundException('Anuncio no encontrado');
     }
 
     if (
-      !listing.isActive ||
-      listing.status !== ListingStatusType.ACTIVE ||
-      listing.expiresAt < new Date()
+      !classifiedad.isActive ||
+      classifiedad.status !== ClassifiedadStatusType.ACTIVE ||
+      classifiedad.expiresAt < new Date()
     ) {
       throw new NotFoundException('Este anuncio ya no está disponible');
     }
 
-    return listing;
+    return classifiedad;
   }
 
-  async update(id: string, updateListingDto: UpdateListingDto, user: User): Promise<Listing> {
-    const listing = await this.findOne(id);
+  async update(id: string, updateClassifiedadDto: UpdateClassifiedadDto, user: User): Promise<Classifiedad> {
+    const classifiedad = await this.findOne(id);
 
-    if (listing.seller.id !== user.id) {
+    if (classifiedad.seller.id !== user.id) {
       throw new ForbiddenException('Solo puedes actualizar tus propios anuncios');
     }
 
-    if (updateListingDto.title) {
-      const newSlug = this.generateSlug(updateListingDto.title);
-      const existingListing = await this.listingRepository.findOne({
+    if (updateClassifiedadDto.title) {
+      const newSlug = this.generateSlug(updateClassifiedadDto.title);
+      const existingClassifiedad = await this.classifiedadRepository.findOne({
         where: { slug: newSlug, id: Not(id) }, // Excluye el anuncio actual si tiene el mismo slug
       });
 
-      if (existingListing) {
-        updateListingDto.slug = `${newSlug}-${Date.now()}`;
+      if (existingClassifiedad) {
+        updateClassifiedadDto.slug = `${newSlug}-${Date.now()}`;
       } else {
-        updateListingDto.slug = newSlug; // Use the new slug
+        updateClassifiedadDto.slug = newSlug; // Use the new slug
       }
     }
 
-    if(updateListingDto.categoryIds){
-      const categories = await this.categoryRepository.findByIds(updateListingDto.categoryIds);
-      listing.categories = categories;
+    if(updateClassifiedadDto.categoryIds){
+      const categories = await this.categoryRepository.findByIds(updateClassifiedadDto.categoryIds);
+      classifiedad.categories = categories;
     }
 
-    if (updateListingDto.status === ListingStatusType.PUBLISHED && !listing.publishedAt) {
-      listing.publishedAt = new Date();
+    if (updateClassifiedadDto.status === ClassifiedadStatusType.PUBLISHED && !classifiedad.publishedAt) {
+      classifiedad.publishedAt = new Date();
     }
 
-    Object.assign(listing, updateListingDto);
-    const updatedListing = await this.listingRepository.save(listing);
-    return updatedListing;
+    Object.assign(classifiedad, updateClassifiedadDto);
+    const updatedClassifiedad = await this.classifiedadRepository.save(classifiedad);
+    return updatedClassifiedad;
   }
 
   async remove(id: string, user: User): Promise<void> {
-    const listing = await this.findOne(id);
+    const classifiedad = await this.findOne(id);
 
-    if (listing.seller.id !== user.id) {
+    if (classifiedad.seller.id !== user.id) {
       throw new ForbiddenException('Solo puedes eliminar tus propios anuncios');
     }
 
-    await this.listingRepository.remove(listing);
+    await this.classifiedadRepository.remove(classifiedad);
   }
 
-  async search(searchDto: SearchListingDto) {
+  async search(searchDto: SearchClassifiedadDto) {
     try {
-      const queryBuilder = this.listingRepository.createQueryBuilder('listing')
-        .leftJoinAndSelect('listing.categories', 'category')
-        .leftJoinAndSelect('listing.seller', 'seller')
-        .where('listing.isActive = :isActive', { isActive: true });
+      const queryBuilder = this.classifiedadRepository.createQueryBuilder('classifiedad')
+        .leftJoinAndSelect('classifiedad.categories', 'category')
+        .leftJoinAndSelect('classifiedad.seller', 'seller')
+        .where('classifiedad.isActive = :isActive', { isActive: true });
 
       // Aplicar filtros
       if (searchDto.query) {
         queryBuilder.andWhere(
-          '(LOWER(listing.title) LIKE LOWER(:query) OR LOWER(listing.description) LIKE LOWER(:query))',
+          '(LOWER(classifiedad.title) LIKE LOWER(:query) OR LOWER(classifiedad.description) LIKE LOWER(:query))',
           { query: `%${searchDto.query}%` }
         );
       }
 
       // Agregar índices para mejorar el rendimiento
-      await this.listingRepository.query(`
-        CREATE INDEX IF NOT EXISTS idx_listing_title ON listings (title);
-        CREATE INDEX IF NOT EXISTS idx_listing_description ON listings (description);
-        CREATE INDEX IF NOT EXISTS idx_listing_price ON listings (price);
+      await this.classifiedadRepository.query(`
+        CREATE INDEX IF NOT EXISTS idx_classifiedad_title ON classifiedads (title);
+        CREATE INDEX IF NOT EXISTS idx_classifiedad_description ON classifiedads (description);
+        CREATE INDEX IF NOT EXISTS idx_classifiedad_price ON classifiedads (price);
       `);
 
       const [items, total] = await queryBuilder.getManyAndCount();
@@ -247,11 +247,11 @@ export class ListingsService {
     }
   }
 
-  mapToResponseDto(listing: Listing): ListingResponseDto {
-    const { seller, categories, images, ...listingData } = listing;
+  mapToResponseDto(classifiedad: Classifiedad): ClassifiedadResponseDto {
+    const { seller, categories, images, ...classifiedadData } = classifiedad;
 
     return {
-      ...listingData,
+      ...classifiedadData,
       seller: {
         id: seller.id,
         firstName: seller.firstName,
@@ -273,29 +273,29 @@ export class ListingsService {
         key: image.key,
         bucket: image.bucket,
         mimeType: image.mimeType,
-        listingId: image.listingId,
+        classifiedadId: image.classifiedadId,
         order: image.order,
         alt: image.alt,
       })) : [],
-      favorites: listing.favorites || 0,
+      favorites: classifiedad.favorites || 0,
       contact: {
-        whatsapp: listing.contact.whatsapp || '',
-        email: listing.contact.email,
-        phone: listing.contact.phone,
-        showEmail: listing.contact.showEmail,
-        showPhone: listing.contact.showPhone,
+        whatsapp: classifiedad.contact.whatsapp || '',
+        email: classifiedad.contact.email,
+        phone: classifiedad.contact.phone,
+        showEmail: classifiedad.contact.showEmail,
+        showPhone: classifiedad.contact.showPhone,
       },
     };
   }
 
-  async createListing(listingData: Partial<Listing>): Promise<Listing> {
-    const listing = this.listingRepository.create(listingData);
-    return this.listingRepository.save(listing);
+  async createClassifiedad(classifiedadData: Partial<Classifiedad>): Promise<Classifiedad> {
+    const classifiedad = this.classifiedadRepository.create(classifiedadData);
+    return this.classifiedadRepository.save(classifiedad);
   }
 
-  async searchListings(query: string): Promise<Listing[]> {
-    return this.listingRepository.createQueryBuilder('listing')
-      .where('listing.title ILIKE :query OR listing.description ILIKE :query', { query: `%${query}%` })
+  async searchClassifiedads(query: string): Promise<Classifiedad[]> {
+    return this.classifiedadRepository.createQueryBuilder('classifiedad')
+      .where('classifiedad.title ILIKE :query OR classifiedad.description ILIKE :query', { query: `%${query}%` })
       .getMany();
   }
 
@@ -326,7 +326,7 @@ export class ListingsService {
     return categories;
   }
 
-  private prepareListingData(dto: QuickListingDto, owner: User): Partial<Listing> {
+  private prepareClassifiedadData(dto: QuickClassifiedadDto, owner: User): Partial<Classifiedad> {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
@@ -339,7 +339,7 @@ export class ListingsService {
       contact: dto.contact,
       location: dto.location,
       price: dto.price,
-      status: ListingStatusType.ACTIVE,
+      status: ClassifiedadStatusType.ACTIVE,
       publishedAt: new Date(),
       expiresAt,
       isActive: true,
@@ -349,8 +349,8 @@ export class ListingsService {
     };
   }
 
-  private handleListingError(error: any): never {
-    this.logger.error('Error in listing operation:', error);
+  private handleClassifiedadError(error: any): never {
+    this.logger.error('Error in classifiedad operation:', error);
     if (error instanceof BadRequestException) {
       throw error;
     }

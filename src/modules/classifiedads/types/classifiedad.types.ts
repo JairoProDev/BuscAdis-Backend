@@ -1,4 +1,4 @@
-export enum ListingType {
+export enum ClassifiedadType {
   PRODUCT = 'product',
   SERVICE = 'service',
   JOB = 'job',
@@ -7,7 +7,7 @@ export enum ListingType {
   OTHER = 'other',
 }
 
-export enum ListingStatus {
+export enum ClassifiedadStatus {
   DRAFT = 'draft',
   PENDING = 'pending',
   ACTIVE = 'active',

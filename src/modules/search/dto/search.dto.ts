@@ -9,7 +9,7 @@ import {
   IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Listing } from '../../listings/entities/listing.entity';
+import { Classifiedad } from '../../classifiedads/entities/classifiedad.entity';
 
 export enum SortOption {
   PRICE_ASC = 'price_asc',
@@ -141,8 +141,8 @@ export class SearchAggregationsDto {
 }
 
 export class SearchResponseDto {
-  @ApiProperty({ type: [Listing] })
-  items: Listing[];
+  @ApiProperty({ type: [Classifiedad] })
+  items: Classifiedad[];
 
   @ApiProperty()
   total: number;

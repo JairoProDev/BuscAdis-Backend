@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Listing } from '../listings/entities/listing.entity';
+import { Classifiedad } from '../classifiedads/entities/classifiedad.entity';
 import { SearchDto, SearchResponseDto, PriceStatsDto, ConditionBucketDto, CategoryBucketDto } from './dto/search.dto';
 
 @Injectable()
 export class SearchService {
   constructor(
-    @InjectRepository(Listing)
-    private readonly listingRepository: Repository<Listing>,
+    @InjectRepository(Classifiedad)
+    private readonly classifiedadRepository: Repository<Classifiedad>,
   ) {}
 
-  async searchListings(searchDto: SearchDto): Promise<SearchResponseDto> {
-    const [items, total] = await this.listingRepository.findAndCount({
+  async searchClassifiedads(searchDto: SearchDto): Promise<SearchResponseDto> {
+    const [items, total] = await this.classifiedadRepository.findAndCount({
       where: this.buildSearchQuery(searchDto),
       take: searchDto.limit || 10,
       skip: ((searchDto.page || 1) - 1) * (searchDto.limit || 10),
@@ -41,7 +41,7 @@ export class SearchService {
     return query;
   }
 
-  private calculatePriceStats(items: Listing[]): PriceStatsDto {
+  private calculatePriceStats(items: Classifiedad[]): PriceStatsDto {
     if (!items.length) {
       return {
         min: 0,
@@ -61,7 +61,7 @@ export class SearchService {
     };
   }
 
-  private calculateConditions(items: Listing[]): ConditionBucketDto[] {
+  private calculateConditions(items: Classifiedad[]): ConditionBucketDto[] {
     const conditionsMap = items.reduce((acc, item) => {
       acc[item.condition] = (acc[item.condition] || 0) + 1;
       return acc;
@@ -73,7 +73,7 @@ export class SearchService {
     }));
   }
 
-  private calculateCategories(items: Listing[]): CategoryBucketDto[] {
+  private calculateCategories(items: Classifiedad[]): CategoryBucketDto[] {
     const categoriesMap = items.reduce((acc, item) => {
       item.categories.forEach(category => {
         acc[category.name] = (acc[category.name] || 0) + 1;

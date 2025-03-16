@@ -40,9 +40,9 @@ export class ImagesService {
     await this.imageRepository.remove(image);
   }
 
-  async findByListingId(listingId: string): Promise<Image[]> {
+  async findByClassifiedadId(classifiedadId: string): Promise<Image[]> {
     return this.imageRepository.find({
-      where: { listingId },
+      where: { classifiedadId },
       order: { order: 'ASC' },
     });
   }

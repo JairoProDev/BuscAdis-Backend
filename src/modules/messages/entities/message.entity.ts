@@ -8,7 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { Listing } from '../../listings/entities/listing.entity';
+import { Classifiedad } from '../../classifiedads/entities/classifiedad.entity';
 
 export enum MessageStatus {
   SENT = 'sent',
@@ -64,10 +64,10 @@ export class Message {
   @Column()
   receiverId: string;
 
-  @ManyToOne(() => Listing, listing => listing.messages, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'listingId' })
-  listing: Listing;
+  @ManyToOne(() => Classifiedad, classifiedad => classifiedad.messages, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'classifiedadId' })
+  classifiedad: Classifiedad;
 
   @Column()
-  listingId: string;
+  classifiedadId: string;
 } 

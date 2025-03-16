@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SearchService } from './search.service';
 import { SearchController } from './search.controller';
-import { Listing } from '../listings/entities/listing.entity';
+import { Classifiedad } from '../classifiedads/entities/classifiedad.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Listing])],
+  imports: [TypeOrmModule.forFeature([Classifiedad])],
   providers: [SearchService],
   controllers: [SearchController],
   exports: [SearchService],

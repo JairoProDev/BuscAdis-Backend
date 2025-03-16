@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ReportStatus, ReportType } from '../entities/report.entity';
-import { ListingType } from '../../listings/entities/listing.entity';
+import { ClassifiedadType } from '../../classifiedads/entities/classifiedad.entity';
 
 class EvidenceDto {
   @ApiProperty({ type: [String], description: 'URLs of evidence (images, documents, etc.)' })
@@ -39,7 +39,7 @@ export class CreateReportDto {
   reportedUserId?: string;
 
   @ApiPropertyOptional()
-  listingId?: string;
+  classifiedadId?: string;
 }
 
 export class UpdateReportDto {
@@ -68,7 +68,7 @@ class UserInfo {
   email: string;
 }
 
-class ListingInfo {
+class ClassifiedadInfo {
   @ApiProperty()
   id: string;
 
@@ -78,8 +78,8 @@ class ListingInfo {
   @ApiProperty()
   slug: string;
 
-  @ApiProperty({ enum: ListingType })
-  type: ListingType;
+  @ApiProperty({ enum: ClassifiedadType })
+  type: ClassifiedadType;
 }
 
 export class ReportResponseDto {
@@ -105,7 +105,7 @@ export class ReportResponseDto {
   reportedUser?: UserInfo;
 
   @ApiPropertyOptional()
-  listing?: ListingInfo | null;
+  classifiedad?: ClassifiedadInfo | null;
 
   @ApiProperty()
   createdAt: Date;

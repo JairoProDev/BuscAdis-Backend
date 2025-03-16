@@ -22,9 +22,9 @@ async function createProfilesTable() {
   }
 }
 
-async function createListingsTable() {
+async function createClassifiedadsTable() {
   const command = new CreateTableCommand({
-    TableName: "Listings",
+    TableName: "Classifiedads",
     KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
     AttributeDefinitions: [
       { AttributeName: "id", AttributeType: "S" },
@@ -50,16 +50,16 @@ async function createListingsTable() {
 
   try {
     await client.send(command);
-    console.log("Tabla Listings creada");
+    console.log("Tabla Classifiedads creada");
   } catch (error) {
-    console.error("Error creando tabla Listings:", error);
+    console.error("Error creando tabla Classifiedads:", error);
     throw error;
   }
 }
 
 async function createTables() {
   await createProfilesTable();
-  await createListingsTable();
+  await createClassifiedadsTable();
 }
 
 module.exports = { createTables };

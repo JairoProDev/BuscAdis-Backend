@@ -25,7 +25,7 @@ export class ImageDto {
   @ApiProperty()
   @IsUUID()
   @IsNotEmpty()
-  listingId: string;
+  classifiedadId: string;
 
   @ApiProperty()
   @IsNumber()
@@ -65,7 +65,7 @@ export class CreateImageDto {
   @ApiProperty()
   @IsUUID()
   @IsNotEmpty()
-  listingId: string;
+  classifiedadId: string;
 
   @ApiProperty({ required: false })
   @IsString()
@@ -117,7 +117,7 @@ export class ImageResponseDto {
   mimeType: string;
 
   @ApiProperty()
-  listingId: string;
+  classifiedadId: string;
 
   @ApiProperty()
   thumbnail?: string;

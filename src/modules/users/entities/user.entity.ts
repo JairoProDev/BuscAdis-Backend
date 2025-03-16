@@ -9,7 +9,7 @@ import {
   BeforeUpdate,
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { Listing } from '../../listings/entities/listing.entity';
+import { Classifiedad } from '../../classifiedads/entities/classifiedad.entity';
 import { Message } from '../../messages/entities/message.entity';
 import { Report } from '../../reports/entities/report.entity';
 import { Favorite } from '../../favorites/entities/favorite.entity';
@@ -79,8 +79,8 @@ export class User {
     @Column({ default: false }) //  isVerified
     isVerified: boolean;
 
-  @OneToMany(() => Listing, listing => listing.seller)
-  listings: Listing[];
+  @OneToMany(() => Classifiedad, classifiedad => classifiedad.seller)
+  classifiedads: Classifiedad[];
 
   @OneToMany(() => Message, message => message.sender)
   sentMessages: Message[];

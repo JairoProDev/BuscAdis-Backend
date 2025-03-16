@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 // No need to import MessageStatus from the entity here.  It's not used in the DTOs
 import { UserResponseDto } from '../../users/dto/user.dto';
-import { ListingResponseDto } from '../../listings/dto/listing.dto';
+import { ClassifiedadResponseDto } from '../../classifiedads/dto/classifiedad.dto';
 
 export class CreateMessageDto {
   @ApiProperty({
@@ -21,16 +21,16 @@ export class CreateMessageDto {
   receiverId: string;
 
   @ApiProperty({
-    description: 'The ID of the listing the message is about',
+    description: 'The ID of the classifiedad the message is about',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsUUID()
   @IsNotEmpty() // Add IsNotEmpty
-  listingId: string;
+  classifiedadId: string;
 
   @ApiProperty({
     description: 'The content of the message',
-    example: 'Hello, I am interested in your listing. Is it still available?',
+    example: 'Hello, I am interested in your classifiedad. Is it still available?',
     maxLength: 2000,
   })
   @IsString()
@@ -82,14 +82,14 @@ export class MessageResponseDto {
   receiver: UserResponseDto; // Correct: uses UserResponseDto
 
   @ApiProperty({
-    description: 'The listing the message is about',
-    type: () => ListingResponseDto,
+    description: 'The classifiedad the message is about',
+    type: () => ClassifiedadResponseDto,
   })
-  listing: ListingResponseDto; // Correct: uses ListingResponseDto
+  classifiedad: ClassifiedadResponseDto; // Correct: uses ClassifiedadResponseDto
 
   @ApiProperty({
     description: 'The content of the message',
-    example: 'Hello, I am interested in your listing. Is it still available?',
+    example: 'Hello, I am interested in your classifiedad. Is it still available?',
   })
   content: string;
 

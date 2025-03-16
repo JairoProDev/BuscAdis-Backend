@@ -19,13 +19,13 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ListingType, ListingStatus, PriceType } from '../entities/listing.entity';
+import { ClassifiedadType, ClassifiedadStatus, PriceType } from '../entities/classifiedad.entity';
 import { UserResponseDto } from 'src/modules/users/dto/user.dto'; // Import UserResponseDto
 import { ContactDto } from './contact.dto';
 import { ImageDto } from '../../images/dto/image.dto';
 import { LocationDto } from './location.dto';
 
-export class QuickListingDto {
+export class QuickClassifiedadDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
@@ -36,10 +36,10 @@ export class QuickListingDto {
   @IsNotEmpty()
   description: string;
 
-  @ApiProperty({ enum: ListingType })
-  @IsEnum(ListingType)
+  @ApiProperty({ enum: ClassifiedadType })
+  @IsEnum(ClassifiedadType)
   @IsNotEmpty()
-  type: ListingType;
+  type: ClassifiedadType;
 
   @ApiProperty({ type: [ImageDto] })
   @IsArray()
@@ -72,8 +72,8 @@ export class QuickListingDto {
   location: LocationDto;
 }
 
-// DTO for advanced listing creation
-export class CreateListingDto extends QuickListingDto {
+// DTO for advanced classifiedad creation
+export class CreateClassifiedadDto extends QuickClassifiedadDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -93,7 +93,7 @@ export class CreateListingDto extends QuickListingDto {
   @IsObject()
   attributes?: Record<string, any>;
 
-  @ApiProperty({ type: [ImageDto], description: 'The images of the listing' })
+  @ApiProperty({ type: [ImageDto], description: 'The images of the classifiedad' })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ImageDto)
@@ -117,16 +117,16 @@ export class CreateListingDto extends QuickListingDto {
   isUrgent?: boolean;
 
   @ApiProperty({
-    enum: ListingStatus,
-    default: ListingStatus.ACTIVE,
-    description: 'The status of the listing'
+    enum: ClassifiedadStatus,
+    default: ClassifiedadStatus.ACTIVE,
+    description: 'The status of the classifiedad'
   })
-  @IsEnum(ListingStatus)
+  @IsEnum(ClassifiedadStatus)
   @IsOptional()
-  status?: ListingStatus = ListingStatus.ACTIVE;
+  status?: ClassifiedadStatus = ClassifiedadStatus.ACTIVE;
 
   @ApiProperty({
-    description: 'The location of the listing',
+    description: 'The location of the classifiedad',
   })
   @ValidateNested()
   @Type(() => LocationDto)
@@ -134,27 +134,27 @@ export class CreateListingDto extends QuickListingDto {
   location: LocationDto;
 }
 
-export class UpdateListingDto extends PartialType(CreateListingDto) {
+export class UpdateClassifiedadDto extends PartialType(CreateClassifiedadDto) {
   @IsOptional()
   @IsString()
   slug?: string;
 }
 
-export class SearchListingDto {
+export class SearchClassifiedadDto {
   @ApiPropertyOptional({ description: 'Search query for name or email' })
   @IsOptional()
   @IsString()
   query?: string;
 
-  @ApiPropertyOptional({ enum: ListingType })
+  @ApiPropertyOptional({ enum: ClassifiedadType })
   @IsOptional()
-  @IsEnum(ListingType)
-  type?: ListingType;
+  @IsEnum(ClassifiedadType)
+  type?: ClassifiedadType;
 
-  @ApiPropertyOptional({ enum: ListingStatus })
+  @ApiPropertyOptional({ enum: ClassifiedadStatus })
   @IsOptional()
-  @IsEnum(ListingStatus)
-  status?: ListingStatus;
+  @IsEnum(ClassifiedadStatus)
+  status?: ClassifiedadStatus;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -291,7 +291,7 @@ export class PriceRangeDto{
   max?:number
 }
 
-export class ListingResponseDto {
+export class ClassifiedadResponseDto {
   @ApiProperty()
   id: string;
 
@@ -310,11 +310,11 @@ export class ListingResponseDto {
   @ApiProperty({ enum: PriceType })
   priceType: PriceType;
 
-  @ApiProperty({ enum: ListingType })
-  type: ListingType;
+  @ApiProperty({ enum: ClassifiedadType })
+  type: ClassifiedadType;
 
-  @ApiProperty({ enum: ListingStatus })
-  status: ListingStatus;
+  @ApiProperty({ enum: ClassifiedadStatus })
+  status: ClassifiedadStatus;
 
   @ApiProperty({ type: () => LocationDto })
   location: LocationDto;

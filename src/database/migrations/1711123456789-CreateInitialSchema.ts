@@ -23,9 +23,9 @@ export class CreateInitialSchema1711123456789 implements MigrationInterface {
             )
         `);
 
-        // Create listings table
+        // Create classifiedads table
         await queryRunner.query(`
-            CREATE TABLE "listings" (
+            CREATE TABLE "classifiedads" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
                 "title" character varying NOT NULL,
                 "slug" character varying NOT NULL,
@@ -44,15 +44,15 @@ export class CreateInitialSchema1711123456789 implements MigrationInterface {
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
                 "publishedAt" TIMESTAMP,
                 "soldAt" TIMESTAMP,
-                CONSTRAINT "UQ_listings_slug" UNIQUE ("slug"),
-                CONSTRAINT "PK_listings" PRIMARY KEY ("id")
+                CONSTRAINT "UQ_classifiedads_slug" UNIQUE ("slug"),
+                CONSTRAINT "PK_classifiedads" PRIMARY KEY ("id")
             )
         `);
 
-        // Add foreign key for listings to users
+        // Add foreign key for classifiedads to users
         await queryRunner.query(`
-            ALTER TABLE "listings" 
-            ADD CONSTRAINT "FK_listings_seller" 
+            ALTER TABLE "classifiedads" 
+            ADD CONSTRAINT "FK_classifiedads_seller" 
             FOREIGN KEY ("sellerId") 
             REFERENCES "users"("id") 
             ON DELETE SET NULL 
@@ -64,8 +64,8 @@ export class CreateInitialSchema1711123456789 implements MigrationInterface {
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "listings" DROP CONSTRAINT "FK_listings_seller"`);
-        await queryRunner.query(`DROP TABLE "listings"`);
+        await queryRunner.query(`ALTER TABLE "classifiedads" DROP CONSTRAINT "FK_classifiedads_seller"`);
+        await queryRunner.query(`DROP TABLE "classifiedads"`);
         await queryRunner.query(`DROP TABLE "users"`);
         await queryRunner.query(`DROP EXTENSION "uuid-ossp"`);
     }

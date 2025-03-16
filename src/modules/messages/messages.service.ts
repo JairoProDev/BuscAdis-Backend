@@ -3,10 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { User } from '../users/entities/user.entity';
-import { Listing } from '../listings/entities/listing.entity';
+import { Classifiedad } from '../classifiedads/entities/classifiedad.entity';
 import { CreateMessageDto, UpdateMessageDto, MessageResponseDto } from './dto/message.dto';
 import { NotificationsService } from '../notifications/notifications.service';
-import { ListingsService } from '../listings/listings.service'; // Import ListingsService
+import { ClassifiedadsService } from '../classifiedads/classifiedads.service'; // Import ClassifiedadsService
 
 @Injectable()
 export class MessagesService {
@@ -17,34 +17,34 @@ export class MessagesService {
     private readonly messagesRepository: Repository<Message>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    @InjectRepository(Listing)
-    private readonly listingsRepository: Repository<Listing>,
+    @InjectRepository(Classifiedad)
+    private readonly classifiedadsRepository: Repository<Classifiedad>,
     private readonly notificationsService: NotificationsService,
-    private readonly listingsService: ListingsService, // Inject ListingsService
+    private readonly classifiedadsService: ClassifiedadsService, // Inject ClassifiedadsService
   ) {}
 
-  async create(createMessageDto: CreateMessageDto, sender: User, listingId: string): Promise<Message> {
+  async create(createMessageDto: CreateMessageDto, sender: User, classifiedadId: string): Promise<Message> {
     const receiver = await this.usersRepository.findOne({ where: { id: createMessageDto.receiverId } });
 
     if (!receiver) {
       throw new NotFoundException('Receiver not found');
     }
 
-    const listing = await this.listingsRepository.findOne({ where: { id: listingId }, relations: ['seller'] });
+    const classifiedad = await this.classifiedadsRepository.findOne({ where: { id: classifiedadId }, relations: ['seller'] });
 
-    if (!listing) {
-      throw new NotFoundException('Listing not found');
+    if (!classifiedad) {
+      throw new NotFoundException('Classifiedad not found');
     }
 
-    if (listing.seller.id === sender.id) {
-      throw new ForbiddenException('Cannot send a message to your own listing');
+    if (classifiedad.seller.id === sender.id) {
+      throw new ForbiddenException('Cannot send a message to your own classifiedad');
     }
 
     const message = this.messagesRepository.create({
       ...createMessageDto,
       sender,
       receiver,
-      listing,
+      classifiedad,
     });
 
     const savedMessage = await this.messagesRepository.save(message);
@@ -52,7 +52,7 @@ export class MessagesService {
     return savedMessage;
   }
 
-    async findAll(user: User, listingId?: string): Promise<Message[]> {
+    async findAll(user: User, classifiedadId?: string): Promise<Message[]> {
         const where: FindOptionsWhere<Message> = {};
 
         // Build the where clause conditionally
@@ -60,17 +60,17 @@ export class MessagesService {
         where.receiver = { id: user.id} ;
 
 
-    if (listingId) {
-      where.listing = { id: listingId };
+    if (classifiedadId) {
+      where.classifiedad = { id: classifiedadId };
     }
 
     return this.messagesRepository.find({
         where: [
             where.sender,
             where.receiver,
-           {listing: where.listing} // Add listing condition
+           {classifiedad: where.classifiedad} // Add classifiedad condition
         ],
-      relations: ['sender', 'receiver', 'listing'],
+      relations: ['sender', 'receiver', 'classifiedad'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -88,7 +88,7 @@ export class MessagesService {
           receiver: { id: user.id },
         },
       ],
-      relations: ['sender', 'receiver', 'listing', 'listing.images'],
+      relations: ['sender', 'receiver', 'classifiedad', 'classifiedad.images'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -98,11 +98,11 @@ export class MessagesService {
       .createQueryBuilder("message")
       .leftJoinAndSelect("message.sender", "sender")
       .leftJoinAndSelect("message.receiver", "receiver")
-      .leftJoinAndSelect("message.listing", "listing")
-      .leftJoinAndSelect("listing.images", "image")
+      .leftJoinAndSelect("message.classifiedad", "classifiedad")
+      .leftJoinAndSelect("classifiedad.images", "image")
       .where("sender.id = :userId OR receiver.id = :userId", { userId: user.id })
       .orderBy("message.createdAt", "DESC")
-      .distinctOn(["listing.id"]) // Use distinctOn for latest message per listing
+      .distinctOn(["classifiedad.id"]) // Use distinctOn for latest message per classifiedad
       .getMany();
 
     return conversations;
@@ -111,7 +111,7 @@ export class MessagesService {
   async findOne(id: string, user: User): Promise<Message> {
     const message = await this.messagesRepository.findOne({
       where: [{ id, sender: { id: user.id } }, { id, receiver: { id: user.id } }],
-      relations: ['sender', 'receiver', 'listing'],
+      relations: ['sender', 'receiver', 'classifiedad'],
     });
 
     if (!message) {
@@ -162,7 +162,7 @@ export class MessagesService {
             id: message.id,
             sender: message.sender,   //  User, not UserResponseDto
             receiver: message.receiver, //  User, not UserResponseDto
-            listing: this.listingsService.mapToResponseDto(message.listing), // Use ListingsService
+            classifiedad: this.classifiedadsService.mapToResponseDto(message.classifiedad), // Use ClassifiedadsService
             content: message.content,
             isRead: message.isRead,
             isArchived: message.isArchived,

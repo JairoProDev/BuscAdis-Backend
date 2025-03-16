@@ -43,7 +43,7 @@ export class MessagesController {
     @Body() createMessageDto: CreateMessageDto,
     @Request() req: AuthenticatedRequest,
   ): Promise<MessageResponseDto> {
-    const message = await this.messagesService.create(createMessageDto, req.user, createMessageDto.listingId);
+    const message = await this.messagesService.create(createMessageDto, req.user, createMessageDto.classifiedadId);
     return this.messagesService.mapToResponseDto(message);
   }
 

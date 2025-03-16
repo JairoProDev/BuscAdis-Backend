@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Favorite } from './entities/favorite.entity';
-import { Listing } from '../listings/entities/listing.entity';
+import { Classifiedad } from '../classifiedads/entities/classifiedad.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateFavoriteDto } from './dto/favorite.dto';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -21,41 +21,41 @@ export class FavoritesService {
   constructor(
     @InjectRepository(Favorite)
     private readonly favoritesRepository: Repository<Favorite>,
-    @InjectRepository(Listing)
-    private readonly listingsRepository: Repository<Listing>,
+    @InjectRepository(Classifiedad)
+    private readonly classifiedadsRepository: Repository<Classifiedad>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createFavoriteDto: CreateFavoriteDto, user: User): Promise<Favorite> {
-    const listing = await this.listingsRepository.findOne({
-      where: { id: createFavoriteDto.listingId },
+    const classifiedad = await this.classifiedadsRepository.findOne({
+      where: { id: createFavoriteDto.classifiedadId },
       relations: ['seller'],
     });
 
-    if (!listing) {
-      throw new NotFoundException('Listing not found');
+    if (!classifiedad) {
+      throw new NotFoundException('Classifiedad not found');
     }
 
     const existingFavorite = await this.favoritesRepository.findOne({
       where: {
         user: { id: user.id }, // Consulta correcta por ID
-        listing: { id: listing.id }, // Consulta correcta por ID
+        classifiedad: { id: classifiedad.id }, // Consulta correcta por ID
       },
     });
 
     if (existingFavorite) {
-      throw new ConflictException('Listing is already in favorites');
+      throw new ConflictException('Classifiedad is already in favorites');
     }
 
     const favorite = this.favoritesRepository.create({
       user,
-      listing,
+      classifiedad,
     });
 
     const savedFavorite = await this.favoritesRepository.save(favorite);
 
-    // Notify the listing owner *solo si* no es el mismo usuario
-    if (listing.seller.id !== user.id) {
+    // Notify the classifiedad owner *solo si* no es el mismo usuario
+    if (classifiedad.seller.id !== user.id) {
       await this.notificationsService.createNewFavoriteNotification(savedFavorite); //  Un solo argumento
     }
 
@@ -65,7 +65,7 @@ export class FavoritesService {
     async findAll(user: User): Promise<Favorite[]> {
         return this.favoritesRepository.find({
             where: { user: { id: user.id } }, //  consulta por ID
-            relations: ['listing', 'listing.seller', 'listing.categories'],
+            relations: ['classifiedad', 'classifiedad.seller', 'classifiedad.categories'],
             order: { createdAt: 'DESC' },
         });
     }
@@ -73,7 +73,7 @@ export class FavoritesService {
     async findOne(id: string, user: User): Promise<Favorite> {
         const favorite = await this.favoritesRepository.findOne({
             where: { id, user: { id: user.id } }, //  consulta por ID
-            relations: ['listing', 'listing.seller', 'listing.categories'],
+            relations: ['classifiedad', 'classifiedad.seller', 'classifiedad.categories'],
         });
 
         if (!favorite) {
@@ -96,20 +96,20 @@ export class FavoritesService {
     async mapToResponseDto(favorite: Favorite): Promise<FavoriteResponseDto> {
         return {
         id: favorite.id,
-        listing: {
-            ...favorite.listing,
-            favorites: favorite.listing.favorites || 0,
+        classifiedad: {
+            ...favorite.classifiedad,
+            favorites: favorite.classifiedad.favorites || 0,
             contact: {
-                whatsapp: favorite.listing.contact.whatsapp || '',
-                showEmail: favorite.listing.contact.showEmail ?? false,
-                showPhone: favorite.listing.contact.showPhone ?? false,
+                whatsapp: favorite.classifiedad.contact.whatsapp || '',
+                showEmail: favorite.classifiedad.contact.showEmail ?? false,
+                showPhone: favorite.classifiedad.contact.showPhone ?? false,
             },
-            images: favorite.listing.images.map((image: ImageDto) => ({
+            images: favorite.classifiedad.images.map((image: ImageDto) => ({
                 url: image.url,
                 key: image.key,
                 bucket: image.bucket,
                 mimeType: image.mimeType,
-                listingId: image.listingId,
+                classifiedadId: image.classifiedadId,
                 order: image.order,
                 alt: image.alt,
             })),
@@ -121,7 +121,7 @@ export class FavoritesService {
   async toggleFavorite(createFavoriteDto: CreateFavoriteDto, userId: string): Promise<void> {
     const existing = await this.favoritesRepository.findOne({
       where: {
-        listing: { id: createFavoriteDto.listingId },
+        classifiedad: { id: createFavoriteDto.classifiedadId },
         user: { id: userId },
       },
     });
@@ -130,7 +130,7 @@ export class FavoritesService {
       await this.favoritesRepository.remove(existing);
     } else {
       const favorite = this.favoritesRepository.create({
-        listing: { id: createFavoriteDto.listingId },
+        classifiedad: { id: createFavoriteDto.classifiedadId },
         user: { id: userId },
       });
       await this.favoritesRepository.save(favorite);

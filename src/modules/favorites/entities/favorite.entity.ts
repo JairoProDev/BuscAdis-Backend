@@ -9,10 +9,10 @@ import {
   Unique,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { Listing } from '../../listings/entities/listing.entity';
+import { Classifiedad } from '../../classifiedads/entities/classifiedad.entity';
 
 @Entity('favorites')
-@Unique(['userId', 'listingId'])
+@Unique(['userId', 'classifiedadId'])
 export class Favorite {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -30,12 +30,12 @@ export class Favorite {
   @Column()
   userId: string;
 
-  @ManyToOne(() => Listing, listing => listing.favorites, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'listingId' })
-  listing: Listing;
+  @ManyToOne(() => Classifiedad, classifiedad => classifiedad.favorites, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'classifiedadId' })
+  classifiedad: Classifiedad;
 
   @Column()
-  listingId: string;
+  classifiedadId: string;
 
   @Column({ default: false })
   isNotified: boolean;

@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Report, ReportStatus } from './entities/report.entity';
-import { Listing } from '../listings/entities/listing.entity';
+import { Classifiedad } from '../classifiedads/entities/classifiedad.entity';
 import { User } from '../users/entities/user.entity';
 import {
   CreateReportDto,
@@ -22,8 +22,8 @@ export class ReportsService {
   constructor(
     @InjectRepository(Report)
     private readonly reportRepository: Repository<Report>,
-    @InjectRepository(Listing)
-    private readonly listingRepository: Repository<Listing>,
+    @InjectRepository(Classifiedad)
+    private readonly classifiedadRepository: Repository<Classifiedad>,
   ) {}
 
   async create(createReportDto: CreateReportDto, user: User): Promise<ReportResponseDto> {
@@ -38,7 +38,7 @@ export class ReportsService {
 
   async findAll(): Promise<ReportResponseDto[]> {
     const reports = await this.reportRepository.find({
-      relations: ['reporter', 'reportedUser', 'listing'],
+      relations: ['reporter', 'reportedUser', 'classifiedad'],
     });
     return reports.map(report => this.mapToResponseDto(report));
   }
@@ -46,7 +46,7 @@ export class ReportsService {
   async findOne(id: string): Promise<ReportResponseDto> {
     const report = await this.reportRepository.findOne({
       where: { id },
-      relations: ['reporter', 'reportedUser', 'listing'],
+      relations: ['reporter', 'reportedUser', 'classifiedad'],
     });
 
     if (!report) {
@@ -59,7 +59,7 @@ export class ReportsService {
   async update(id: string, updateReportDto: UpdateReportDto): Promise<ReportResponseDto> {
     const report = await this.reportRepository.findOne({
       where: { id },
-      relations: ['reporter', 'reportedUser', 'listing'],
+      relations: ['reporter', 'reportedUser', 'classifiedad'],
     });
 
     if (!report) {
@@ -83,7 +83,7 @@ export class ReportsService {
   async findPendingReports(): Promise<Report[]> {
     return this.reportRepository.find({
       where: { status: ReportStatus.PENDING },
-      relations: ['listing', 'reporter'],
+      relations: ['classifiedad', 'reporter'],
     });
   }
 
@@ -106,11 +106,11 @@ export class ReportsService {
         lastName: report.reportedUser.lastName,
         email: report.reportedUser.email,
       } : undefined,
-      listing: report.listing ? {
-        id: report.listing.id,
-        title: report.listing.title,
-        slug: report.listing.slug,
-        type: report.listing.type
+      classifiedad: report.classifiedad ? {
+        id: report.classifiedad.id,
+        title: report.classifiedad.title,
+        slug: report.classifiedad.slug,
+        type: report.classifiedad.type
       } : null,
       createdAt: report.createdAt,
       updatedAt: report.updatedAt,

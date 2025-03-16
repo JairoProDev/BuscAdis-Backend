@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ListingsService } from './listings.service';
-import { ListingsController } from './listings.controller';
-import { Listing } from './entities/listing.entity';
+import { ClassifiedadsService } from './classifiedads.service';
+import { ClassifiedadsController } from './classifiedads.controller';
+import { Classifiedad } from './entities/classifiedad.entity';
 import { Category } from '../categories/entities/category.entity';
 import { ImagesModule } from '../images/images.module';
 import { RedisCacheModule } from '../cache/cache.module';
@@ -10,14 +10,14 @@ import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Listing, Category]),
+    TypeOrmModule.forFeature([Classifiedad, Category]),
     ImagesModule,
     RedisCacheModule,
     StorageModule,
   ],
-  providers: [ListingsService],
-  controllers: [ListingsController],
-  exports: [ListingsService],
+  providers: [ClassifiedadsService],
+  controllers: [ClassifiedadsController],
+  exports: [ClassifiedadsService],
 })
-export class ListingsModule {} 
+export class ClassifiedadsModule {} 
 

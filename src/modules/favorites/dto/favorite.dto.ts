@@ -1,16 +1,16 @@
 // src/modules/favorites/dto/favorite.dto.ts
 import { IsUUID, IsNotEmpty } from 'class-validator'; // Importa IsNotEmpty
 import { ApiProperty } from '@nestjs/swagger';
-import { ListingResponseDto } from '../../listings/dto/listing.dto'; // Asegúrate que este DTO exista
+import { ClassifiedadResponseDto } from '../../classifiedads/dto/classifiedad.dto'; // Asegúrate que este DTO exista
 
 export class CreateFavoriteDto {
   @ApiProperty({
-    description: 'The ID of the listing to favorite',
+    description: 'The ID of the classifiedad to favorite',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @IsUUID()
   @IsNotEmpty() //  Añade esta validación
-  listingId: string;
+  classifiedadId: string;
 }
 
 export class FavoriteResponseDto {
@@ -21,10 +21,10 @@ export class FavoriteResponseDto {
   id: string;
 
   @ApiProperty({
-    description: 'The listing that was favorited',
-    type: () => ListingResponseDto,
+    description: 'The classifiedad that was favorited',
+    type: () => ClassifiedadResponseDto,
   })
-  listing: ListingResponseDto;
+  classifiedad: ClassifiedadResponseDto;
 
   @ApiProperty({
     description: 'The date when the favorite was created',

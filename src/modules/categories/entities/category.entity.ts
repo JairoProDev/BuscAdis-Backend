@@ -10,7 +10,7 @@ import {
   Index,
   OneToMany,
 } from 'typeorm';
-import { Listing } from '../../listings/entities/listing.entity';
+import { Classifiedad } from '../../classifiedads/entities/classifiedad.entity';
 
 @Entity('categories')
 @Tree('closure-table')
@@ -46,8 +46,8 @@ export class Category {
   @TreeParent()
   parent: Category;
 
-  @OneToMany(() => Listing, listing => listing.category)
-  listings: Listing[];
+  @OneToMany(() => Classifiedad, classifiedad => classifiedad.category)
+  classifiedads: Classifiedad[];
 
   @CreateDateColumn()
   createdAt: Date;
