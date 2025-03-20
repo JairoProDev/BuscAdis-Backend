@@ -3,7 +3,7 @@ const {
   CreateAuthorizerCommand,
 } = require("@aws-sdk/client-api-gateway");
 
-const client = new APIGatewayClient({ region: "us-east-1" });
+const client = new APIGatewayClient({ region: "us-east-2" });
 
 async function createCognitoAuthorizer(apiId, userPoolId) {
   const command = new CreateAuthorizerCommand({
@@ -11,7 +11,7 @@ async function createCognitoAuthorizer(apiId, userPoolId) {
     name: "CognitoAuthorizer",
     type: "COGNITO_USER_POOLS",
     providerARNs: [
-      `arn:aws:cognito-idp:us-east-1:${process.env.AWS_ACCOUNT_ID}:userpool/${userPoolId}`,
+      `arn:aws:cognito-idp:us-east-2:${process.env.AWS_ACCOUNT_ID}:userpool/${userPoolId}`,
     ],
     identitySource: "method.request.header.Authorization",
   });

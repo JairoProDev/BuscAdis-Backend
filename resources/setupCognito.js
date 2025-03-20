@@ -3,7 +3,7 @@ const {
   CreateUserPoolCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 
-const client = new CognitoIdentityProviderClient({ region: "us-east-1" });
+const client = new CognitoIdentityProviderClient({ region: "us-east-2" });
 
 async function createUserPool() {
   const command = new CreateUserPoolCommand({

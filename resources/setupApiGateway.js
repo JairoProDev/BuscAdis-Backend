@@ -6,7 +6,7 @@ const {
   PutIntegrationCommand,
 } = require("@aws-sdk/client-api-gateway");
 
-const client = new APIGatewayClient({ region: "us-east-1" });
+const client = new APIGatewayClient({ region: "us-east-2" });
 
 async function createApi() {
   const createApiCommand = new CreateRestApiCommand({
@@ -55,7 +55,7 @@ async function createClassifiedadsResource(apiId, rootResourceId, lambdaArn) {
     httpMethod: "POST",
     type: "AWS_PROXY",
     integrationHttpMethod: "POST",
-    uri: `arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/${lambdaArn}/invocations`,
+    uri: `arn:aws:apigateway:us-east-2:lambda:path/2015-03-31/functions/${lambdaArn}/invocations`,
   });
 
   await client.send(putIntegrationCommand);

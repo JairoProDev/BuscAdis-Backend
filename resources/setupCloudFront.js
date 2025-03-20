@@ -3,7 +3,7 @@ const {
   CreateDistributionCommand,
 } = require("@aws-sdk/client-cloudfront");
 
-const client = new CloudFrontClient({ region: "us-east-1" });
+const client = new CloudFrontClient({ region: "us-east-2" });
 
 async function createCloudFrontDistribution(bucketName) {
   const originId = `S3-${bucketName}`;

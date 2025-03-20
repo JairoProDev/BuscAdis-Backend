@@ -2,7 +2,7 @@ const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { v4: uuidv4 } = require("uuid");
 
-const client = new S3Client({ region: "us-east-1" });
+const client = new S3Client({ region: "us-east-2" });
 const BUCKET_NAME = "buscadis-images";
 
 exports.handler = async (event) => {

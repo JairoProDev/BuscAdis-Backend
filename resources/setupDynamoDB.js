@@ -3,7 +3,7 @@ const {
   CreateTableCommand,
 } = require("@aws-sdk/client-dynamodb");
 
-const client = new DynamoDBClient({ region: "us-east-1" });
+const client = new DynamoDBClient({ region: "us-east-2" });
 
 async function createProfilesTable() {
   const command = new CreateTableCommand({

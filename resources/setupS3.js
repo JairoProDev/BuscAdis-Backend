@@ -4,7 +4,7 @@ const {
   PutBucketCorsCommand,
 } = require("@aws-sdk/client-s3");
 
-const client = new S3Client({ region: "us-east-1" });
+const client = new S3Client({ region: "us-east-2" });
 
 async function createImagesBucket() {
   const bucketName = "buscadis-images";

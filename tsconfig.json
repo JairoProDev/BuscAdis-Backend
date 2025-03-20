@@ -23,6 +23,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "scripts/testCredentials.js", "scripts/createTestAd.js"],
   "exclude": ["node_modules", "dist"]
 } 
