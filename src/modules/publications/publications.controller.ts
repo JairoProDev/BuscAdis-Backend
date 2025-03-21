@@ -30,7 +30,7 @@ import {
 import { AuthenticatedRequest } from 'src/common/types/request.type';
 
 @ApiTags('publications')
-@Controller('publications')
+@Controller('api/v1/publications')
 export class PublicationsController {
   constructor(private readonly publicationsService: PublicationsService) {}
 
