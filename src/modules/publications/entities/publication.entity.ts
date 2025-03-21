@@ -21,13 +21,13 @@ import { Report } from '../../reports/entities/report.entity';
 import { Favorite } from '../../favorites/entities/favorite.entity';
 import { slugify } from '../../../common/utils/slugify';
 import { ImageDto } from '../../images/dto/image.dto';
-import { ClassifiedadType, ClassifiedadStatus, PriceType } from '../types/classifiedad.types';
+import { PublicationType, PublicationStatus, PriceType } from '../types/publication.types';
 import { ContactDto } from '../dto/contact.dto';
 import { LocationDto } from '../dto/location.dto';
 
-@Entity('classifiedads')
+@Entity('publications')
 @Index(['title', 'description'], { fulltext: true })
-export class Classifiedad {
+export class Publication {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -43,10 +43,10 @@ export class Classifiedad {
 
   @Column({
     type: 'enum',
-    enum: ClassifiedadType,
-    default: ClassifiedadType.OTHER,
+    enum: PublicationType,
+    default: PublicationType.OTHER,
   })
-  type: ClassifiedadType;
+  type: PublicationType;
 
   @Column('decimal', { precision: 10, scale: 2 })
   price: number;
@@ -60,10 +60,10 @@ export class Classifiedad {
 
   @Column({
     type: 'enum',
-    enum: ClassifiedadStatus,
-    default: ClassifiedadStatus.DRAFT,
+    enum: PublicationStatus,
+    default: PublicationStatus.DRAFT,
   })
-  status: ClassifiedadStatus;
+  status: PublicationStatus;
 
   @Column('jsonb')
   contact: ContactDto;
@@ -95,18 +95,18 @@ export class Classifiedad {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => User, user => user.classifiedads)
+  @ManyToOne(() => User, user => user.publications)
   seller: User;
 
   @ManyToMany(() => Category)
   @JoinTable({
-    name: 'classifiedad_categories',
-    joinColumn: { name: 'classifiedad_id', referencedColumnName: 'id' },
+    name: 'publication_categories',
+    joinColumn: { name: 'publication_id', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'category_id', referencedColumnName: 'id' },
   })
   categories: Category[];
 
-  @OneToMany(() => Image, image => image.classifiedad)
+  @OneToMany(() => Image, image => image.publication)
   images: Image[];
 
   @Column('jsonb', { nullable: true })
@@ -118,10 +118,10 @@ export class Classifiedad {
   @Column({ default: 0 })
   favorites: number;
 
-  @OneToMany(() => Message, message => message.classifiedad)
+  @OneToMany(() => Message, message => message.publication)
   messages: Message[];
 
-  @OneToMany(() => Report, report => report.classifiedad)
+  @OneToMany(() => Report, report => report.publication)
   reports: Report[];
 
   @Column('jsonb', { nullable: true })
@@ -133,7 +133,7 @@ export class Classifiedad {
   @Column({ select: false, insert: false, update: false, nullable: true })
   relevanceScore?: number;
 
-  @ManyToOne(() => Category, category => category.classifiedads)
+  @ManyToOne(() => Category, category => category.publications)
   @JoinColumn({ name: 'categoryId' })
   category: Category;
 
@@ -149,5 +149,5 @@ export class Classifiedad {
   }
 }
 
-export { ClassifiedadType, ClassifiedadStatus, PriceType }; 
+export { PublicationType, PublicationStatus, PriceType }; 
 

@@ -19,13 +19,13 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ClassifiedadType, ClassifiedadStatus, PriceType } from '../entities/classifiedad.entity';
+import { PublicationType, PublicationStatus, PriceType } from '../entities/publication.entity';
 import { UserResponseDto } from 'src/modules/users/dto/user.dto'; // Import UserResponseDto
 import { ContactDto } from './contact.dto';
 import { ImageDto } from '../../images/dto/image.dto';
 import { LocationDto } from './location.dto';
 
-export class QuickClassifiedadDto {
+export class QuickPublicationDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
@@ -36,10 +36,10 @@ export class QuickClassifiedadDto {
   @IsNotEmpty()
   description: string;
 
-  @ApiProperty({ enum: ClassifiedadType })
-  @IsEnum(ClassifiedadType)
+  @ApiProperty({ enum: PublicationType })
+  @IsEnum(PublicationType)
   @IsNotEmpty()
-  type: ClassifiedadType;
+  type: PublicationType;
 
   @ApiProperty({ type: [ImageDto] })
   @IsArray()
@@ -72,8 +72,8 @@ export class QuickClassifiedadDto {
   location: LocationDto;
 }
 
-// DTO for advanced classifiedad creation
-export class CreateClassifiedadDto extends QuickClassifiedadDto {
+// DTO for advanced publication creation
+export class CreatePublicationDto extends QuickPublicationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -93,7 +93,7 @@ export class CreateClassifiedadDto extends QuickClassifiedadDto {
   @IsObject()
   attributes?: Record<string, any>;
 
-  @ApiProperty({ type: [ImageDto], description: 'The images of the classifiedad' })
+  @ApiProperty({ type: [ImageDto], description: 'The images of the publication' })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ImageDto)
@@ -117,16 +117,16 @@ export class CreateClassifiedadDto extends QuickClassifiedadDto {
   isUrgent?: boolean;
 
   @ApiProperty({
-    enum: ClassifiedadStatus,
-    default: ClassifiedadStatus.ACTIVE,
-    description: 'The status of the classifiedad'
+    enum: PublicationStatus,
+    default: PublicationStatus.ACTIVE,
+    description: 'The status of the publication'
   })
-  @IsEnum(ClassifiedadStatus)
+  @IsEnum(PublicationStatus)
   @IsOptional()
-  status?: ClassifiedadStatus = ClassifiedadStatus.ACTIVE;
+  status?: PublicationStatus = PublicationStatus.ACTIVE;
 
   @ApiProperty({
-    description: 'The location of the classifiedad',
+    description: 'The location of the publication',
   })
   @ValidateNested()
   @Type(() => LocationDto)
@@ -134,27 +134,27 @@ export class CreateClassifiedadDto extends QuickClassifiedadDto {
   location: LocationDto;
 }
 
-export class UpdateClassifiedadDto extends PartialType(CreateClassifiedadDto) {
+export class UpdatePublicationDto extends PartialType(CreatePublicationDto) {
   @IsOptional()
   @IsString()
   slug?: string;
 }
 
-export class SearchClassifiedadDto {
+export class SearchPublicationDto {
   @ApiPropertyOptional({ description: 'Search query for name or email' })
   @IsOptional()
   @IsString()
   query?: string;
 
-  @ApiPropertyOptional({ enum: ClassifiedadType })
+  @ApiPropertyOptional({ enum: PublicationType })
   @IsOptional()
-  @IsEnum(ClassifiedadType)
-  type?: ClassifiedadType;
+  @IsEnum(PublicationType)
+  type?: PublicationType;
 
-  @ApiPropertyOptional({ enum: ClassifiedadStatus })
+  @ApiPropertyOptional({ enum: PublicationStatus })
   @IsOptional()
-  @IsEnum(ClassifiedadStatus)
-  status?: ClassifiedadStatus;
+  @IsEnum(PublicationStatus)
+  status?: PublicationStatus;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -291,7 +291,7 @@ export class PriceRangeDto{
   max?:number
 }
 
-export class ClassifiedadResponseDto {
+export class PublicationResponseDto {
   @ApiProperty()
   id: string;
 
@@ -310,11 +310,11 @@ export class ClassifiedadResponseDto {
   @ApiProperty({ enum: PriceType })
   priceType: PriceType;
 
-  @ApiProperty({ enum: ClassifiedadType })
-  type: ClassifiedadType;
+  @ApiProperty({ enum: PublicationType })
+  type: PublicationType;
 
-  @ApiProperty({ enum: ClassifiedadStatus })
-  status: ClassifiedadStatus;
+  @ApiProperty({ enum: PublicationStatus })
+  status: PublicationStatus;
 
   @ApiProperty({ type: () => LocationDto })
   location: LocationDto;

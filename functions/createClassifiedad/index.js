@@ -32,12 +32,12 @@ exports.handler = async (event) => {
     // Obtener el usuario desde el token
     const userId = event.requestContext.authorizer.claims.sub;
 
-    const classifiedadId = uuidv4();
+    const publicationId = uuidv4();
 
     const command = new PutCommand({
-      TableName: "Classifiedads",
+      TableName: "Publications",
       Item: {
-        id: classifiedadId,
+        id: publicationId,
         userId,
         title,
         description,
@@ -56,7 +56,7 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 201,
-      body: JSON.stringify({ id: classifiedadId }),
+      body: JSON.stringify({ id: publicationId }),
     };
   } catch (error) {
     console.error("Error:", error);

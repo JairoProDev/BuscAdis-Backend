@@ -10,11 +10,11 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ClassifiedadType, ClassifiedadStatus, PriceType } from '../entities/classifiedad.entity';
+import { PublicationType, PublicationStatus, PriceType } from '../entities/publication.entity';
 import { LocationDto } from './location.dto';
 import { ContactDto } from './contact.dto';
 
-export class QuickClassifiedadDto {
+export class QuickPublicationDto {
   @ApiProperty({ example: 'Software Developer Position' })
   @IsString()
   @MinLength(5)
@@ -25,13 +25,13 @@ export class QuickClassifiedadDto {
   @MinLength(20)
   description: string;
 
-  @ApiProperty({ enum: ClassifiedadType })
-  @IsEnum(ClassifiedadType)
-  type: ClassifiedadType;
+  @ApiProperty({ enum: PublicationType })
+  @IsEnum(PublicationType)
+  type: PublicationType;
 
-  @ApiProperty({ enum: ClassifiedadStatus })
-  @IsEnum(ClassifiedadStatus)
-  status: ClassifiedadStatus = ClassifiedadStatus.ACTIVE;
+  @ApiProperty({ enum: PublicationStatus })
+  @IsEnum(PublicationStatus)
+  status: PublicationStatus = PublicationStatus.ACTIVE;
 
   @ApiProperty()
   @IsNumber()

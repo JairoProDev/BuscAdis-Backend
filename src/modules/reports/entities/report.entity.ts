@@ -8,7 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { Classifiedad } from '../../classifiedads/entities/classifiedad.entity';
+import { Publication } from '../../publications/entities/publication.entity';
 
 export enum ReportType {
   SPAM = 'spam',
@@ -72,10 +72,10 @@ export class Report {
   @Column({ nullable: true })
   reportedUserId?: string;
 
-  @ManyToOne(() => Classifiedad, classifiedad => classifiedad.reports, { onDelete: 'CASCADE', nullable: true })
-  @JoinColumn({ name: 'classifiedadId' })
-  classifiedad?: Classifiedad;
+  @ManyToOne(() => Publication, publication => publication.reports, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'publicationId' })
+  publication?: Publication;
 
   @Column({ nullable: true })
-  classifiedadId?: string;
+  publicationId?: string;
 } 

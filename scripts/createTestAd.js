@@ -24,7 +24,7 @@ async function createTestAd() {
 
     await docClient.send(
       new PutCommand({
-        TableName: "Classifiedads",
+        TableName: "Publications",
         Item: ad,
       })
     );

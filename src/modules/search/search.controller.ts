@@ -23,21 +23,21 @@ export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Search classifiedads' })
+  @ApiOperation({ summary: 'Search publications' })
   @ApiResponse({ status: 200, description: 'Return search results' })
   async search(@Query() searchDto: SearchDto): Promise<SearchResponseDto> {
-    return this.searchService.searchClassifiedads(searchDto);
+    return this.searchService.searchPublications(searchDto);
   }
 
-  @Post('classifiedads')
-  @ApiOperation({ summary: 'Search classifiedads' })
+  @Post('publications')
+  @ApiOperation({ summary: 'Search publications' })
   @ApiResponse({
     status: 200,
     description: 'Returns search results',
     type: SearchResponseDto,
   })
-  async searchClassifiedads(@Body() searchDto: SearchDto): Promise<SearchResponseDto> {
-    return this.searchService.searchClassifiedads(searchDto);
+  async searchPublications(@Body() searchDto: SearchDto): Promise<SearchResponseDto> {
+    return this.searchService.searchPublications(searchDto);
   }
 
   @Post('create-index')

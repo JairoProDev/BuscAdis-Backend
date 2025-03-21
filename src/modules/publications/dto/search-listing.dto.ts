@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsEnum, IsNumber, IsObject, Min, Max, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ClassifiedadType, ClassifiedadStatus } from '../entities/classifiedad.entity';
+import { PublicationType, PublicationStatus } from '../entities/publication.entity';
 
 export class PriceRangeDto {
   @ApiPropertyOptional()
@@ -17,21 +17,21 @@ export class PriceRangeDto {
   max?: number;
 }
 
-export class SearchClassifiedadDto {
+export class SearchPublicationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   query?: string;
 
-  @ApiPropertyOptional({ enum: ClassifiedadType })
+  @ApiPropertyOptional({ enum: PublicationType })
   @IsOptional()
-  @IsEnum(ClassifiedadType)
-  type?: ClassifiedadType;
+  @IsEnum(PublicationType)
+  type?: PublicationType;
 
-  @ApiPropertyOptional({ enum: ClassifiedadStatus })
+  @ApiPropertyOptional({ enum: PublicationStatus })
   @IsOptional()
-  @IsEnum(ClassifiedadStatus)
-  status?: ClassifiedadStatus;
+  @IsEnum(PublicationStatus)
+  status?: PublicationStatus;
 
   @ApiPropertyOptional()
   @IsOptional()

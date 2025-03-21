@@ -42,9 +42,9 @@ export class InitialMigration1706300000000 implements MigrationInterface {
             )
         `);
 
-        // Classifiedads table
+        // Publications table
         await queryRunner.query(`
-            CREATE TABLE "classifiedads" (
+            CREATE TABLE "publications" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
                 "title" character varying NOT NULL,
                 "slug" character varying NOT NULL,
@@ -67,8 +67,8 @@ export class InitialMigration1706300000000 implements MigrationInterface {
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
                 "publishedAt" TIMESTAMP,
                 "soldAt" TIMESTAMP,
-                CONSTRAINT "UQ_classifiedads_slug" UNIQUE ("slug"),
-                CONSTRAINT "PK_classifiedads" PRIMARY KEY ("id")
+                CONSTRAINT "UQ_publications_slug" UNIQUE ("slug"),
+                CONSTRAINT "PK_publications" PRIMARY KEY ("id")
             )
         `);
 
@@ -82,7 +82,7 @@ export class InitialMigration1706300000000 implements MigrationInterface {
                 "adminNotes" text,
                 "evidence" jsonb,
                 "reporterId" uuid,
-                "classifiedadId" uuid,
+                "publicationId" uuid,
                 "reviewedById" uuid,
                 "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
@@ -118,8 +118,8 @@ export class InitialMigration1706300000000 implements MigrationInterface {
         `);
 
         await queryRunner.query(`
-            ALTER TABLE "classifiedads" 
-            ADD CONSTRAINT "FK_classifiedads_user" 
+            ALTER TABLE "publications" 
+            ADD CONSTRAINT "FK_publications_user" 
             FOREIGN KEY ("userId") 
             REFERENCES "users"("id") 
             ON DELETE CASCADE
@@ -135,9 +135,9 @@ export class InitialMigration1706300000000 implements MigrationInterface {
 
         await queryRunner.query(`
             ALTER TABLE "reports" 
-            ADD CONSTRAINT "FK_reports_classifiedad" 
-            FOREIGN KEY ("classifiedadId") 
-            REFERENCES "classifiedads"("id") 
+            ADD CONSTRAINT "FK_reports_publication" 
+            FOREIGN KEY ("publicationId") 
+            REFERENCES "publications"("id") 
             ON DELETE CASCADE
         `);
 
@@ -161,13 +161,13 @@ export class InitialMigration1706300000000 implements MigrationInterface {
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`ALTER TABLE "notifications" DROP CONSTRAINT "FK_notifications_user"`);
         await queryRunner.query(`ALTER TABLE "reports" DROP CONSTRAINT "FK_reports_reviewer"`);
-        await queryRunner.query(`ALTER TABLE "reports" DROP CONSTRAINT "FK_reports_classifiedad"`);
+        await queryRunner.query(`ALTER TABLE "reports" DROP CONSTRAINT "FK_reports_publication"`);
         await queryRunner.query(`ALTER TABLE "reports" DROP CONSTRAINT "FK_reports_reporter"`);
-        await queryRunner.query(`ALTER TABLE "classifiedads" DROP CONSTRAINT "FK_classifiedads_user"`);
+        await queryRunner.query(`ALTER TABLE "publications" DROP CONSTRAINT "FK_publications_user"`);
         await queryRunner.query(`ALTER TABLE "categories" DROP CONSTRAINT "FK_categories_parent"`);
         await queryRunner.query(`DROP TABLE "notifications"`);
         await queryRunner.query(`DROP TABLE "reports"`);
-        await queryRunner.query(`DROP TABLE "classifiedads"`);
+        await queryRunner.query(`DROP TABLE "publications"`);
         await queryRunner.query(`DROP TABLE "categories"`);
         await queryRunner.query(`DROP TABLE "users"`);
     }

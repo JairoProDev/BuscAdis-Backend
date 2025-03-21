@@ -3,10 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { User } from '../users/entities/user.entity';
-import { Classifiedad } from '../classifiedads/entities/classifiedad.entity';
+import { Publication } from '../publications/entities/publication.entity';
 import { CreateMessageDto, UpdateMessageDto, MessageResponseDto } from './dto/message.dto';
 import { NotificationsService } from '../notifications/notifications.service';
-import { ClassifiedadsService } from '../classifiedads/classifiedads.service'; // Import ClassifiedadsService
+import { PublicationsService } from '../publications/publications.service'; // Import PublicationsService
 
 @Injectable()
 export class MessagesService {
@@ -17,34 +17,34 @@ export class MessagesService {
     private readonly messagesRepository: Repository<Message>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    @InjectRepository(Classifiedad)
-    private readonly classifiedadsRepository: Repository<Classifiedad>,
+    @InjectRepository(Publication)
+    private readonly publicationsRepository: Repository<Publication>,
     private readonly notificationsService: NotificationsService,
-    private readonly classifiedadsService: ClassifiedadsService, // Inject ClassifiedadsService
+    private readonly publicationsService: PublicationsService, // Inject PublicationsService
   ) {}
 
-  async create(createMessageDto: CreateMessageDto, sender: User, classifiedadId: string): Promise<Message> {
+  async create(createMessageDto: CreateMessageDto, sender: User, publicationId: string): Promise<Message> {
     const receiver = await this.usersRepository.findOne({ where: { id: createMessageDto.receiverId } });
 
     if (!receiver) {
       throw new NotFoundException('Receiver not found');
     }
 
-    const classifiedad = await this.classifiedadsRepository.findOne({ where: { id: classifiedadId }, relations: ['seller'] });
+    const publication = await this.publicationsRepository.findOne({ where: { id: publicationId }, relations: ['seller'] });
 
-    if (!classifiedad) {
-      throw new NotFoundException('Classifiedad not found');
+    if (!publication) {
+      throw new NotFoundException('Publication not found');
     }
 
-    if (classifiedad.seller.id === sender.id) {
-      throw new ForbiddenException('Cannot send a message to your own classifiedad');
+    if (publication.seller.id === sender.id) {
+      throw new ForbiddenException('Cannot send a message to your own publication');
     }
 
     const message = this.messagesRepository.create({
       ...createMessageDto,
       sender,
       receiver,
-      classifiedad,
+      publication,
     });
 
     const savedMessage = await this.messagesRepository.save(message);
@@ -52,7 +52,7 @@ export class MessagesService {
     return savedMessage;
   }
 
-    async findAll(user: User, classifiedadId?: string): Promise<Message[]> {
+    async findAll(user: User, publicationId?: string): Promise<Message[]> {
         const where: FindOptionsWhere<Message> = {};
 
         // Build the where clause conditionally
@@ -60,17 +60,17 @@ export class MessagesService {
         where.receiver = { id: user.id} ;
 
 
-    if (classifiedadId) {
-      where.classifiedad = { id: classifiedadId };
+    if (publicationId) {
+      where.publication = { id: publicationId };
     }
 
     return this.messagesRepository.find({
         where: [
             where.sender,
             where.receiver,
-           {classifiedad: where.classifiedad} // Add classifiedad condition
+           {publication: where.publication} // Add publication condition
         ],
-      relations: ['sender', 'receiver', 'classifiedad'],
+      relations: ['sender', 'receiver', 'publication'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -88,7 +88,7 @@ export class MessagesService {
           receiver: { id: user.id },
         },
       ],
-      relations: ['sender', 'receiver', 'classifiedad', 'classifiedad.images'],
+      relations: ['sender', 'receiver', 'publication', 'publication.images'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -98,11 +98,11 @@ export class MessagesService {
       .createQueryBuilder("message")
       .leftJoinAndSelect("message.sender", "sender")
       .leftJoinAndSelect("message.receiver", "receiver")
-      .leftJoinAndSelect("message.classifiedad", "classifiedad")
-      .leftJoinAndSelect("classifiedad.images", "image")
+      .leftJoinAndSelect("message.publication", "publication")
+      .leftJoinAndSelect("publication.images", "image")
       .where("sender.id = :userId OR receiver.id = :userId", { userId: user.id })
       .orderBy("message.createdAt", "DESC")
-      .distinctOn(["classifiedad.id"]) // Use distinctOn for latest message per classifiedad
+      .distinctOn(["publication.id"]) // Use distinctOn for latest message per publication
       .getMany();
 
     return conversations;
@@ -111,7 +111,7 @@ export class MessagesService {
   async findOne(id: string, user: User): Promise<Message> {
     const message = await this.messagesRepository.findOne({
       where: [{ id, sender: { id: user.id } }, { id, receiver: { id: user.id } }],
-      relations: ['sender', 'receiver', 'classifiedad'],
+      relations: ['sender', 'receiver', 'publication'],
     });
 
     if (!message) {
@@ -162,7 +162,7 @@ export class MessagesService {
             id: message.id,
             sender: message.sender,   //  User, not UserResponseDto
             receiver: message.receiver, //  User, not UserResponseDto
-            classifiedad: this.classifiedadsService.mapToResponseDto(message.classifiedad), // Use ClassifiedadsService
+            publication: this.publicationsService.mapToResponseDto(message.publication), // Use PublicationsService
             content: message.content,
             isRead: message.isRead,
             isArchived: message.isArchived,

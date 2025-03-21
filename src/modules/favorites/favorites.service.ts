@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Favorite } from './entities/favorite.entity';
-import { Classifiedad } from '../classifiedads/entities/classifiedad.entity';
+import { Publication } from '../publications/entities/publication.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateFavoriteDto } from './dto/favorite.dto';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -21,41 +21,41 @@ export class FavoritesService {
   constructor(
     @InjectRepository(Favorite)
     private readonly favoritesRepository: Repository<Favorite>,
-    @InjectRepository(Classifiedad)
-    private readonly classifiedadsRepository: Repository<Classifiedad>,
+    @InjectRepository(Publication)
+    private readonly publicationsRepository: Repository<Publication>,
     private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createFavoriteDto: CreateFavoriteDto, user: User): Promise<Favorite> {
-    const classifiedad = await this.classifiedadsRepository.findOne({
-      where: { id: createFavoriteDto.classifiedadId },
+    const publication = await this.publicationsRepository.findOne({
+      where: { id: createFavoriteDto.publicationId },
       relations: ['seller'],
     });
 
-    if (!classifiedad) {
-      throw new NotFoundException('Classifiedad not found');
+    if (!publication) {
+      throw new NotFoundException('Publication not found');
     }
 
     const existingFavorite = await this.favoritesRepository.findOne({
       where: {
         user: { id: user.id }, // Consulta correcta por ID
-        classifiedad: { id: classifiedad.id }, // Consulta correcta por ID
+        publication: { id: publication.id }, // Consulta correcta por ID
       },
     });
 
     if (existingFavorite) {
-      throw new ConflictException('Classifiedad is already in favorites');
+      throw new ConflictException('Publication is already in favorites');
     }
 
     const favorite = this.favoritesRepository.create({
       user,
-      classifiedad,
+      publication,
     });
 
     const savedFavorite = await this.favoritesRepository.save(favorite);
 
-    // Notify the classifiedad owner *solo si* no es el mismo usuario
-    if (classifiedad.seller.id !== user.id) {
+    // Notify the publication owner *solo si* no es el mismo usuario
+    if (publication.seller.id !== user.id) {
       await this.notificationsService.createNewFavoriteNotification(savedFavorite); //  Un solo argumento
     }
 
@@ -65,7 +65,7 @@ export class FavoritesService {
     async findAll(user: User): Promise<Favorite[]> {
         return this.favoritesRepository.find({
             where: { user: { id: user.id } }, //  consulta por ID
-            relations: ['classifiedad', 'classifiedad.seller', 'classifiedad.categories'],
+            relations: ['publication', 'publication.seller', 'publication.categories'],
             order: { createdAt: 'DESC' },
         });
     }
@@ -73,7 +73,7 @@ export class FavoritesService {
     async findOne(id: string, user: User): Promise<Favorite> {
         const favorite = await this.favoritesRepository.findOne({
             where: { id, user: { id: user.id } }, //  consulta por ID
-            relations: ['classifiedad', 'classifiedad.seller', 'classifiedad.categories'],
+            relations: ['publication', 'publication.seller', 'publication.categories'],
         });
 
         if (!favorite) {
@@ -96,20 +96,20 @@ export class FavoritesService {
     async mapToResponseDto(favorite: Favorite): Promise<FavoriteResponseDto> {
         return {
         id: favorite.id,
-        classifiedad: {
-            ...favorite.classifiedad,
-            favorites: favorite.classifiedad.favorites || 0,
+        publication: {
+            ...favorite.publication,
+            favorites: favorite.publication.favorites || 0,
             contact: {
-                whatsapp: favorite.classifiedad.contact.whatsapp || '',
-                showEmail: favorite.classifiedad.contact.showEmail ?? false,
-                showPhone: favorite.classifiedad.contact.showPhone ?? false,
+                whatsapp: favorite.publication.contact.whatsapp || '',
+                showEmail: favorite.publication.contact.showEmail ?? false,
+                showPhone: favorite.publication.contact.showPhone ?? false,
             },
-            images: favorite.classifiedad.images.map((image: ImageDto) => ({
+            images: favorite.publication.images.map((image: ImageDto) => ({
                 url: image.url,
                 key: image.key,
                 bucket: image.bucket,
                 mimeType: image.mimeType,
-                classifiedadId: image.classifiedadId,
+                publicationId: image.publicationId,
                 order: image.order,
                 alt: image.alt,
             })),
@@ -121,7 +121,7 @@ export class FavoritesService {
   async toggleFavorite(createFavoriteDto: CreateFavoriteDto, userId: string): Promise<void> {
     const existing = await this.favoritesRepository.findOne({
       where: {
-        classifiedad: { id: createFavoriteDto.classifiedadId },
+        publication: { id: createFavoriteDto.publicationId },
         user: { id: userId },
       },
     });
@@ -130,7 +130,7 @@ export class FavoritesService {
       await this.favoritesRepository.remove(existing);
     } else {
       const favorite = this.favoritesRepository.create({
-        classifiedad: { id: createFavoriteDto.classifiedadId },
+        publication: { id: createFavoriteDto.publicationId },
         user: { id: userId },
       });
       await this.favoritesRepository.save(favorite);

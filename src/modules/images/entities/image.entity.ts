@@ -7,7 +7,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { Classifiedad } from '../../classifiedads/entities/classifiedad.entity';
+import { Publication } from '../../publications/entities/publication.entity';
 
 @Entity('images')
 export class Image {
@@ -36,11 +36,11 @@ export class Image {
   thumbnail?: string;
 
   @Column()
-  classifiedadId: string;
+  publicationId: string;
 
-  @ManyToOne(() => Classifiedad, classifiedad => classifiedad.images)
-  @JoinColumn({ name: 'classifiedadId' })
-  classifiedad: Classifiedad;
+  @ManyToOne(() => Publication, publication => publication.images)
+  @JoinColumn({ name: 'publicationId' })
+  publication: Publication;
 
   @CreateDateColumn()
   createdAt: Date;

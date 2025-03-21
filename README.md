@@ -8,7 +8,7 @@ This is a NestJS-based backend service that provides all the necessary APIs for 
 
 - User authentication and authorization
 - Category management
-- Classifiedad management
+- Publication management
 - Advanced search functionality
 - Messaging system
 - Favorites management
@@ -123,7 +123,7 @@ src/
 │   ├── auth/         # Authentication module
 │   ├── users/        # User management
 │   ├── categories/   # Category management
-│   ├── classifiedads/     # Classifiedad management
+│   ├── publications/     # Publication management
 │   ├── search/       # Search functionality
 │   ├── favorites/    # Favorites management
 │   ├── messages/     # Messaging system
@@ -151,11 +151,11 @@ src/
 - Category CRUD operations
 - Category metadata
 
-### Classifiedad Management
-- Create and manage classifiedads
+### Publication Management
+- Create and manage publications
 - Image upload
-- Classifiedad status management
-- Featured classifiedads
+- Publication status management
+- Featured publications
 
 ### Search
 - Full-text search
@@ -169,12 +169,12 @@ src/
 - Message notifications
 
 ### Favorites
-- Save favorite classifiedads
+- Save favorite publications
 - Manage favorite lists
 - Favorite notifications
 
 ### Reports
-- Report inappropriate classifiedads
+- Report inappropriate publications
 - Report management
 - Moderation tools
 

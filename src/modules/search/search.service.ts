@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Classifiedad } from '../classifiedads/entities/classifiedad.entity';
+import { Publication } from '../publications/entities/publication.entity';
 import { SearchDto, SearchResponseDto, PriceStatsDto, ConditionBucketDto, CategoryBucketDto } from './dto/search.dto';
 
 @Injectable()
 export class SearchService {
   constructor(
-    @InjectRepository(Classifiedad)
-    private readonly classifiedadRepository: Repository<Classifiedad>,
+    @InjectRepository(Publication)
+    private readonly publicationRepository: Repository<Publication>,
   ) {}
 
-  async searchClassifiedads(searchDto: SearchDto): Promise<SearchResponseDto> {
-    const [items, total] = await this.classifiedadRepository.findAndCount({
+  async searchPublications(searchDto: SearchDto): Promise<SearchResponseDto> {
+    const [items, total] = await this.publicationRepository.findAndCount({
       where: this.buildSearchQuery(searchDto),
       take: searchDto.limit || 10,
       skip: ((searchDto.page || 1) - 1) * (searchDto.limit || 10),
@@ -41,7 +41,7 @@ export class SearchService {
     return query;
   }
 
-  private calculatePriceStats(items: Classifiedad[]): PriceStatsDto {
+  private calculatePriceStats(items: Publication[]): PriceStatsDto {
     if (!items.length) {
       return {
         min: 0,
@@ -61,7 +61,7 @@ export class SearchService {
     };
   }
 
-  private calculateConditions(items: Classifiedad[]): ConditionBucketDto[] {
+  private calculateConditions(items: Publication[]): ConditionBucketDto[] {
     const conditionsMap = items.reduce((acc, item) => {
       acc[item.condition] = (acc[item.condition] || 0) + 1;
       return acc;
@@ -73,7 +73,7 @@ export class SearchService {
     }));
   }
 
-  private calculateCategories(items: Classifiedad[]): CategoryBucketDto[] {
+  private calculateCategories(items: Publication[]): CategoryBucketDto[] {
     const categoriesMap = items.reduce((acc, item) => {
       item.categories.forEach(category => {
         acc[category.name] = (acc[category.name] || 0) + 1;

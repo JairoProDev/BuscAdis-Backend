@@ -1,27 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Classifiedad } from '../classifiedads/entities/classifiedad.entity';
+import { Publication } from '../publications/entities/publication.entity';
 
 @Injectable()
 export class StatisticsService {
   private readonly logger = new Logger(StatisticsService.name);
 
   constructor(
-    @InjectRepository(Classifiedad)
-    private readonly classifiedadRepository: Repository<Classifiedad>,
+    @InjectRepository(Publication)
+    private readonly publicationRepository: Repository<Publication>,
   ) {}
 
-  async getClassifiedadStats() {
-    const totalClassifiedads = await this.classifiedadRepository.count();
-    const activeClassifiedads = await this.classifiedadRepository.count({ where: { isActive: true } });
-    const featuredClassifiedads = await this.classifiedadRepository.count({ where: { isFeatured: true } });
+  async getPublicationStats() {
+    const totalPublications = await this.publicationRepository.count();
+    const activePublications = await this.publicationRepository.count({ where: { isActive: true } });
+    const featuredPublications = await this.publicationRepository.count({ where: { isFeatured: true } });
 
     return {
-      total: totalClassifiedads,
-      active: activeClassifiedads,
-      featured: featuredClassifiedads,
-      inactivePercentage: ((totalClassifiedads - activeClassifiedads) / totalClassifiedads) * 100,
+      total: totalPublications,
+      active: activePublications,
+      featured: featuredPublications,
+      inactivePercentage: ((totalPublications - activePublications) / totalPublications) * 100,
     };
   }
 } 

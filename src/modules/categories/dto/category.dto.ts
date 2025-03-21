@@ -115,5 +115,5 @@ export class CategoryResponseDto {
   children?: CategoryResponseDto[];
 
   @ApiProperty()
-  classifiedadCount?: number;
+  publicationCount?: number;
 }

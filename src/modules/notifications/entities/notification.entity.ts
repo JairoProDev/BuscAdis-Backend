@@ -12,9 +12,9 @@ import { User } from '../../users/entities/user.entity';
 export enum NotificationType {
   MESSAGE = 'message',        //  minúsculas
   FAVORITE = 'favorite',    //  minúsculas
-  CLASSIFIEDAD_UPDATE = 'classifiedad_update',
-  CLASSIFIEDAD_EXPIRED = 'classifiedad_expired',
-  CLASSIFIEDAD_SOLD = 'classifiedad_sold',
+  PUBLICATION_UPDATE = 'publication_update',
+  PUBLICATION_EXPIRED = 'publication_expired',
+  PUBLICATION_SOLD = 'publication_sold',
   REPORT_UPDATE = 'report_update',
   SYSTEM = 'system', // No lo usas, pero lo dejo
 }

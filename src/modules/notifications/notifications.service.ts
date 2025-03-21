@@ -12,7 +12,7 @@ import {
 } from './dto/notification.dto';
 import { Message } from '../messages/entities/message.entity';
 import { Favorite } from '../favorites/entities/favorite.entity';
-import { Classifiedad } from '../classifiedads/entities/classifiedad.entity';
+import { Publication } from '../publications/entities/publication.entity';
 
 @Injectable()
 export class NotificationsService {
@@ -123,14 +123,14 @@ export class NotificationsService {
 
     async createNewMessageNotification(message: Message): Promise<Notification> {
         const notification = this.notificationRepository.create({
-            user: { id: message.classifiedad.seller.id }, // User ID of the classifiedad's seller
+            user: { id: message.publication.seller.id }, // User ID of the publication's seller
             type: NotificationType.MESSAGE, // Use the correct enum value
             title: 'Nuevo mensaje',
             message: `Has recibido un nuevo mensaje de ${message.sender.firstName}`,
             data: {
                 messageId: message.id,
                 senderId: message.sender.id,
-                classifiedadId: message.classifiedad.id,
+                publicationId: message.publication.id,
             },
             expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         });
@@ -140,14 +140,14 @@ export class NotificationsService {
 
     async createNewFavoriteNotification(favorite: Favorite): Promise<Notification> {
         const notification = this.notificationRepository.create({
-            user: { id: favorite.classifiedad.seller.id }, // User ID of the classifiedad's seller
+            user: { id: favorite.publication.seller.id }, // User ID of the publication's seller
             type: NotificationType.FAVORITE, // Use the correct enum
             title: 'Nuevo favorito',
             message: `${favorite.user.firstName} ha marcado tu anuncio como favorito`,
             data: {
                 favoriteId: favorite.id,
                 userId: favorite.user.id,
-                classifiedadId: favorite.classifiedad.id,
+                publicationId: favorite.publication.id,
             },
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
         });
@@ -155,50 +155,50 @@ export class NotificationsService {
         return this.notificationRepository.save(notification);
     }
 
-    async notifyClassifiedadReport(userId: string, reportData: any): Promise<Notification> {
+    async notifyPublicationReport(userId: string, reportData: any): Promise<Notification> {
         const notification = this.notificationRepository.create({
             user: { id: userId },  // User ID
             type: NotificationType.REPORT_UPDATE, // Use correct enum value
-            title: 'Classifiedad Reported',
-            message: `Your classifiedad "${reportData.classifiedadTitle}" has been reported`,
+            title: 'Publication Reported',
+            message: `Your publication "${reportData.publicationTitle}" has been reported`,
             data: reportData,
             expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         });
         return this.notificationRepository.save(notification);
     }
 
-    async notifyClassifiedadStatus(userId: string, classifiedadData: any): Promise<Notification> { // userId
+    async notifyPublicationStatus(userId: string, publicationData: any): Promise<Notification> { // userId
         const notification = this.notificationRepository.create({
             user: { id: userId },  // User ID
-            type: NotificationType.CLASSIFIEDAD_UPDATE,  //Use correct enum value
-            title: 'Classifiedad Status Updated',
-            message: `Your classifiedad "${classifiedadData.title}" status has been updated to ${classifiedadData.status}`,
-            data: classifiedadData,
+            type: NotificationType.PUBLICATION_UPDATE,  //Use correct enum value
+            title: 'Publication Status Updated',
+            message: `Your publication "${publicationData.title}" status has been updated to ${publicationData.status}`,
+            data: publicationData,
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         });
         return this.notificationRepository.save(notification);
     }
 
-    async notifyClassifiedadExpiring(userId: string, classifiedadData: any): Promise<Notification> { // userId
+    async notifyPublicationExpiring(userId: string, publicationData: any): Promise<Notification> { // userId
         const notification = this.notificationRepository.create({
             user: { id: userId },  // User ID
-            type: NotificationType.CLASSIFIEDAD_EXPIRED, //Use correct enum value
-            title: 'Classifiedad Expiring Soon',
-            message: `Your classifiedad "${classifiedadData.title}" will expire in ${classifiedadData.daysRemaining} days`,
-            data: classifiedadData,
+            type: NotificationType.PUBLICATION_EXPIRED, //Use correct enum value
+            title: 'Publication Expiring Soon',
+            message: `Your publication "${publicationData.title}" will expire in ${publicationData.daysRemaining} days`,
+            data: publicationData,
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         });
 
         return this.notificationRepository.save(notification);
     }
 
-    async notifyClassifiedadViews(userId: string, classifiedadData: any): Promise<Notification> { // userId
+    async notifyPublicationViews(userId: string, publicationData: any): Promise<Notification> { // userId
       const notification = this.notificationRepository.create({
           user: { id: userId },  // User ID
-          type: NotificationType.CLASSIFIEDAD_UPDATE, //Use correct enum value
-          title: 'Classifiedad Performance Update',
-          message: `Your classifiedad "${classifiedadData.title}" has reached ${classifiedadData.views} views`,
-          data: classifiedadData,
+          type: NotificationType.PUBLICATION_UPDATE, //Use correct enum value
+          title: 'Publication Performance Update',
+          message: `Your publication "${publicationData.title}" has reached ${publicationData.views} views`,
+          data: publicationData,
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
       return this.notificationRepository.save(notification);

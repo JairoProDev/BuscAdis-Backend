@@ -5,7 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { typeOrmConfig } from './config/typeorm.config';
 import { TasksModule } from './modules/tasks/tasks.module';
-import { ClassifiedadsModule } from './modules/classifiedads/classifiedads.module';
+import { PublicationsModule } from './modules/publications/publications.module';
 import { UsersModule } from './modules/users/users.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { CustomLogger } from './common/logger/logger.service'; // Importa CustomLogger
@@ -18,7 +18,7 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter'; //
         ScheduleModule.forRoot(),
         CacheModule.register(),
         TasksModule,
-        ClassifiedadsModule,
+        PublicationsModule,
         UsersModule,
         StorageModule,
     ],

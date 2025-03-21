@@ -58,16 +58,16 @@ app-buscadis/backend/src/
     │   ├── favorites.controller.ts
     │   ├── favorites.module.ts
     │   └── favorites.service.ts
-    ├── classifiedads/
+    ├── publications/
     │   ├── dto/
-    │   │   ├── classifiedad.dto.ts
-    │   │   ├── quick-classifiedad.dto.ts
-    │   │   └── search-classifiedad.dto.ts
+    │   │   ├── publication.dto.ts
+    │   │   ├── quick-publication.dto.ts
+    │   │   └── search-publication.dto.ts
     │   ├── entities/
-    │   │   └── classifiedad.entity.ts
-    │   ├── classifiedads.controller.ts
-    │   ├── classifiedads.module.ts
-    │   └── classifiedads.service.ts
+    │   │   └── publication.entity.ts
+    │   ├── publications.controller.ts
+    │   ├── publications.module.ts
+    │   └── publications.service.ts
     ├── messages/
     │   ├── dto/
     │   │   └── message.dto.ts

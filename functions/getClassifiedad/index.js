@@ -31,7 +31,7 @@ exports.handler = async (event) => {
     }
 
     const command = new ScanCommand({
-      TableName: "Classifiedads",
+      TableName: "Publications",
       FilterExpression:
         filterExpressions.length > 0
           ? filterExpressions.join(" AND ")
@@ -48,7 +48,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       body: JSON.stringify({
-        classifiedads: response.Items,
+        publications: response.Items,
         total: response.Count,
         pages: Math.ceil((response.Count || 0) / limit),
       }),

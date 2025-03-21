@@ -29,19 +29,19 @@ import { AuthenticatedRequest } from '../../common/types/request.type';
 export class FavoritesController {
   constructor(private readonly favoritesService: FavoritesService) {}
 
-  @Post(':classifiedadId')
-  @ApiOperation({ summary: 'Add a classifiedad to favorites' })
+  @Post(':publicationId')
+  @ApiOperation({ summary: 'Add a publication to favorites' })
   @ApiResponse({
     status: 201,
-    description: 'The classifiedad has been successfully added to favorites.',
+    description: 'The publication has been successfully added to favorites.',
     type: FavoriteResponseDto,
   })
   async create(
-    @Param('classifiedadId', ParseUUIDPipe) classifiedadId: string, // Usa ParseUUIDPipe
+    @Param('publicationId', ParseUUIDPipe) publicationId: string, // Usa ParseUUIDPipe
     @Request() req: AuthenticatedRequest, //  AuthenticatedRequest
   ): Promise<FavoriteResponseDto> {
     // Crea el DTO correctamente.
-    const createFavoriteDto: CreateFavoriteDto = { classifiedadId };
+    const createFavoriteDto: CreateFavoriteDto = { publicationId };
     const favorite = await this.favoritesService.create(createFavoriteDto, req.user);
     return this.favoritesService.mapToResponseDto(favorite);
   }
@@ -79,11 +79,11 @@ export class FavoritesController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Remove a classifiedad from favorites' })
+  @ApiOperation({ summary: 'Remove a publication from favorites' })
   @ApiParam({ name: 'id', description: 'Favorite ID' })
   @ApiResponse({
     status: 200,
-    description: 'The classifiedad has been successfully removed from favorites.',
+    description: 'The publication has been successfully removed from favorites.',
   })
   async remove(
       @Param('id', ParseUUIDPipe) id: string,  //  ParseUUIDPipe

@@ -27,12 +27,12 @@ async function createApi() {
   }
 }
 
-async function createClassifiedadsResource(apiId, rootResourceId, lambdaArn) {
-  // Crear recurso /classifiedads
+async function createPublicationsResource(apiId, rootResourceId, lambdaArn) {
+  // Crear recurso /publications
   const createResourceCommand = new CreateResourceCommand({
     restApiId: apiId,
     parentId: rootResourceId,
-    pathPart: "classifiedads",
+    pathPart: "publications",
   });
 
   const resource = await client.send(createResourceCommand);
@@ -60,7 +60,7 @@ async function createClassifiedadsResource(apiId, rootResourceId, lambdaArn) {
 
   await client.send(putIntegrationCommand);
 
-  console.log("Recurso /classifiedads creado y configurado");
+  console.log("Recurso /publications creado y configurado");
 }
 
 async function setupApiGateway(lambdaArns) {
@@ -75,10 +75,10 @@ async function setupApiGateway(lambdaArns) {
   const rootResourceId = resources.items.find((item) => item.path === "/").id;
 
   // Crear recursos para diferentes endpoints
-  await createClassifiedadsResource(
+  await createPublicationsResource(
     apiId,
     rootResourceId,
-    lambdaArns.createClassifiedad
+    lambdaArns.createPublication
   );
 
   // Crear el resto de endpoints según sea necesario...
